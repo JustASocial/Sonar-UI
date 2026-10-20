@@ -22,6 +22,7 @@ $wanted = @(
 	"monitor","smartphone","tablet","cpu","package","gift","award","target","crosshair","flag",
 	"bookmark","thumbs-up","smile","frown","meh","rocket","flame","sparkles","wand-2","crown",
 	"gauge","radar","waves","orbit","scan","scan-line","crop","shuffle","repeat","undo","redo",
+	"wand","wand-sparkles","sliders-vertical",
 	"bold","italic","underline","strikethrough","align-left","align-center","align-right",
 	"chevrons-up","chevrons-down","arrow-up-right","arrow-down-right","corner-down-right",
 	"circle","circle-dot","dot","grip-vertical","grip-horizontal","ellipsis","square-check-big",

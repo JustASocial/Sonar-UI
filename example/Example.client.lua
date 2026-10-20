@@ -26,12 +26,12 @@ local window = Sonar.createWindow({
 			},
 			ru = {
 				WINDOW_TITLE = "Sonar UI",
-				TAB_BASIC = "РћСЃРЅРѕРІС‹",
-				TAB_INPUTS = "РџРѕР»СЏ РІРІРѕРґР°",
-				TAB_LAYOUT = "Р Р°СЃРєР»Р°РґРєР°",
-				TAB_SPECIAL = "Р¤РёСЂРјРµРЅРЅС‹Рµ СЌР»РµРјРµРЅС‚С‹",
-				TAB_THEME = "РўРµРјР°",
-				GREETING = "Р—РґРµСЃСЊ РІСЃС‘ РїРѕ Material Design 3.",
+				TAB_BASIC = "Р С›РЎРѓР Р…Р С•Р Р†РЎвЂ№",
+				TAB_INPUTS = "Р СџР С•Р В»РЎРЏ Р Р†Р Р†Р С•Р Т‘Р В°",
+				TAB_LAYOUT = "Р В Р В°РЎРѓР С”Р В»Р В°Р Т‘Р С”Р В°",
+				TAB_SPECIAL = "Р В¤Р С‘РЎР‚Р СР ВµР Р…Р Р…РЎвЂ№Р Вµ РЎРЊР В»Р ВµР СР ВµР Р…РЎвЂљРЎвЂ№",
+				TAB_THEME = "Р СћР ВµР СР В°",
+				GREETING = "Р вЂ”Р Т‘Р ВµРЎРѓРЎРЉ Р Р†РЎРѓРЎвЂ Р С—Р С• Material Design 3.",
 			},
 		},
 	},
@@ -42,7 +42,7 @@ window:show()
 local basic = window:createTab({ Title = "loc:TAB_BASIC", Icon = "house" })
 local inputs = window:createTab({ Title = "loc:TAB_INPUTS", Icon = "sliders-horizontal" })
 local layout = window:createTab({ Title = "loc:TAB_LAYOUT", Icon = "layout-grid" })
-local special = window:createTab({ Title = "loc:TAB_SPECIAL", Icon = "wand-2" })
+local special = window:createTab({ Title = "loc:TAB_SPECIAL", Icon = "wand-sparkles" })
 local themeTab = window:createTab({ Title = "loc:TAB_THEME", Icon = "palette" })
 
 local section = basic:createSection({ Title = "Buttons", Icon = "circle-dot" })
@@ -201,7 +201,7 @@ inputSection:createColorPicker({
 	Flag = "accentColor",
 })
 
-local sliderSection = inputs:createSection({ Title = "Ranges", Icon = "sliders" })
+local sliderSection = inputs:createSection({ Title = "Ranges", Icon = "sliders-horizontal" })
 
 sliderSection:createSlider({
 	Title = "Volume",
@@ -347,7 +347,7 @@ themeSection:createButton({
 	end,
 })
 themeSection:createButton({
-	Title = "Р СѓСЃСЃРєРёР№",
+	Title = "Р В РЎС“РЎРѓРЎРѓР С”Р С‘Р в„–",
 	Variant = "outlined",
 	Callback = function()
 		window:setLanguage("ru")
