@@ -414,6 +414,9 @@ GuiService = makeService({})
 ContentProvider = makeService({})
 
 game = makeService({
+	HttpGet = function(_, url)
+		return "-- stub source for " .. tostring(url)
+	end,
 	GetService = function(_, name)
 		if name == "Players" then return Players end
 		if name == "UserInputService" then return UserInputService end
@@ -464,6 +467,12 @@ function __fire(target, signalName, ...)
 		if sig then
 			sig:Fire(...)
 		end
+	end
+end
+
+loadstring = function(source)
+	return function()
+		return __SONAR_LIB__
 	end
 end
 

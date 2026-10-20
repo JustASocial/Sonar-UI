@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build single file bundle
+        run: python tools/build.py src /tmp/sonar.lua
+
+      - name: Check dist/sonar.lua is up to date
+        run: |
+          if ! diff -q /tmp/sonar.lua dist/sonar.lua; then
+            echo "dist/sonar.lua is stale. Regenerate it with:"
+            echo "  python tools/build.py src dist/sonar.lua"
+            exit 1
+          fi
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonar
+          path: /tmp/sonar.lua

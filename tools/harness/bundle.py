@@ -83,7 +83,8 @@ for key in sorted(modules):
     chunks.append('__mods["%s"] = function()\n%s\nend\n' % (key, indented))
 
 with open(scenario, "r", encoding="utf-8") as handle:
-    chunks.append(handle.read())
+    body = handle.read().replace("__SONAR__", '__require("init")')
+    chunks.append(body)
 
 with open(out, "w", encoding="utf-8") as handle:
     handle.write("\n".join(chunks))
