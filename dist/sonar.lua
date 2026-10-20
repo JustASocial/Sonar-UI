@@ -297,7 +297,46 @@ __mods["core.Container"] = function()
 		end
 		handle.__built = true
 		Creator.window = self.window
-		handle:_build(self.contentFrame, handle._order)
+		local ok, err = pcall(function()
+			handle:_build(self.contentFrame, handle._order)
+		end)
+		if not ok then
+			self:createError((handle.__type or "Element") .. ": " .. tostring(err))
+		end
+	end
+
+	function Container.createError(self, message)
+		if not self.contentFrame then
+			return
+		end
+		local theme = self.window.theme
+		local frame = Creator.new("Frame", {
+			Name = "Error",
+			LayoutOrder = 99999,
+			Size = UDim2.new(1, 0, 0, 64),
+			BackgroundColor3 = theme.colors.errorContainer,
+			BorderSizePixel = 0,
+			Parent = self.contentFrame,
+		}, { BackgroundColor3 = "errorContainer" })
+
+		Creator.new("UICorner", {
+			CornerRadius = theme.shape.element,
+			Parent = frame,
+		})
+
+		Creator.new("TextLabel", {
+			Position = UDim2.new(0, 12, 0, 8),
+			Size = UDim2.new(1, -24, 1, -16),
+			BackgroundTransparency = 1,
+			Font = theme.fonts.mono,
+			Text = tostring(message),
+			TextColor3 = theme.colors.onErrorContainer,
+			TextSize = 12,
+			TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			Parent = frame,
+		}, { TextColor3 = "onErrorContainer" })
 	end
 
 	function Container.flush(self)
@@ -314,35 +353,54 @@ __mods["core.Container"] = function()
 		local Elements = __require("elements.Init")
 		local module = Elements.get(typeName)
 		if not module then
-			error("[Sonar] unknown element type: " .. tostring(typeName))
+			self:createError("unknown element type: " .. tostring(typeName))
+			return nil
 		end
-		local handle = module.new({
-			window = self.window,
-			container = self,
-			props = props or {},
-		})
+		local ok, handle = pcall(function()
+			return module.new({
+				window = self.window,
+				container = self,
+				props = props or {},
+			})
+		end)
+		if not ok then
+			self:createError(typeName .. ": " .. tostring(handle))
+			return nil
+		end
 		self:addChild(handle)
 		return handle
 	end
 
 	function Container.createSection(self, props)
 		local Section = __require("core.Section")
-		local section = Section.new({
-			window = self.window,
-			container = self,
-			props = props or {},
-		})
+		local ok, section = pcall(function()
+			return Section.new({
+				window = self.window,
+				container = self,
+				props = props or {},
+			})
+		end)
+		if not ok then
+			self:createError("Section: " .. tostring(section))
+			return nil
+		end
 		self:addChild(section)
 		return section
 	end
 
 	function Container.createGroup(self, props)
 		local Group = __require("core.Group")
-		local group = Group.new({
-			window = self.window,
-			container = self,
-			props = props or {},
-		})
+		local ok, group = pcall(function()
+			return Group.new({
+				window = self.window,
+				container = self,
+				props = props or {},
+			})
+		end)
+		if not ok then
+			self:createError("Group: " .. tostring(group))
+			return nil
+		end
 		self:addChild(group)
 		return group
 	end
@@ -1717,6 +1775,12 @@ __mods["core.Tab"] = function()
 		return self
 	end
 
+	function Tab:_connect(signal, callback)
+		local connection = signal:Connect(callback)
+		table.insert(self.connections, connection)
+		return connection
+	end
+
 	function Tab:_createSelector()
 		local window = self.window
 		local theme = window.theme
@@ -1732,7 +1796,7 @@ __mods["core.Tab"] = function()
 		self.item = item
 
 		if sidebar then
-			item.Size = UDim2.new(1, -8, 0, 40)
+			item.Size = UDim2.new(1, 0, 0, 40)
 			item.AutomaticSize = Enum.AutomaticSize.None
 		else
 			item.Size = UDim2.new(0, 0, 0, 34)
@@ -1839,32 +1903,49 @@ __mods["core.Tab"] = function()
 		local page = Creator.new("ScrollingFrame", {
 			Name = "Page",
 			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromScale(0, 0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ScrollBarThickness = 3,
 			ScrollBarImageColor3 = window.theme.colors.outlineVariant,
 			CanvasSize = UDim2.new(0, 0, 0, 0),
-			AutomaticCanvasSize = Enum.AutomaticSize.Y,
 			ScrollingDirection = Enum.ScrollingDirection.Y,
 			ElasticBehavior = Enum.ElasticBehavior.Never,
+			Visible = false,
 			Parent = window.pages,
 		})
 		self.page = page
 
-		Creator.new("UIListLayout", {
+		local layout = Creator.new("UIListLayout", {
 			Padding = UDim.new(0, 8),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
 			Parent = page,
 		})
+		self.pageLayout = layout
 
-		Creator.new("UIPadding", {
+		local padding = Creator.new("UIPadding", {
 			PaddingTop = UDim.new(0, 12),
 			PaddingBottom = UDim.new(0, 16),
 			PaddingLeft = UDim.new(0, 14),
 			PaddingRight = UDim.new(0, 14),
 			Parent = page,
 		})
+		self.pagePadding = padding
+
+		local function updateCanvas()
+			local width = page.AbsoluteSize.X
+			if width <= 0 then
+				return
+			end
+			local content = layout.AbsoluteContentSize or Vector2.new(0, 0)
+			local height = content.Y + padding.PaddingTop.Offset + padding.PaddingBottom.Offset
+			page.CanvasSize = UDim2.new(0, width, 0, math.ceil(height))
+		end
+		self._updateCanvas = updateCanvas
+
+		self:_connect(layout:GetPropertyChangedSignal("AbsoluteContentSize"), updateCanvas)
+		self:_connect(page:GetPropertyChangedSignal("AbsoluteSize"), updateCanvas)
 
 		self.contentFrame = page
 	end
@@ -1918,12 +1999,14 @@ __mods["core.Tab"] = function()
 		self.page = nil
 		self:_createSelector()
 		self:_createPage()
-		self.item.LayoutOrder = self._order or 1
-		self.page.LayoutOrder = self._order or 1
+		self.item.LayoutOrder = self._index or 1
+		self.page.LayoutOrder = self._index or 1
 		self:reset()
 		if self.selected then
 			self:flush()
 			self:_applySelected()
+			self.page.Visible = true
+			self.page.Position = UDim2.fromScale(0, 0)
 		end
 	end
 
@@ -2252,6 +2335,12 @@ __mods["core.Window"] = function()
 		return self
 	end
 
+	function Window:_connect(signal, callback)
+		local connection = signal:Connect(callback)
+		table.insert(self.connections, connection)
+		return connection
+	end
+
 	function Window:_buildScreen()
 		local screen = Instance.new("ScreenGui")
 		screen.Name = "Sonar"
@@ -2308,16 +2397,6 @@ __mods["core.Window"] = function()
 			Parent = surface,
 		}, { Color = "outlineVariant" })
 		self.stroke = stroke
-
-		local shadow = Creator.new("UIStroke", {
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = Color3.new(0, 0, 0),
-			Transparency = 0.55,
-			Thickness = 14,
-			Parent = root,
-		})
-		shadow.Name = "Shadow"
-		self.shadow = shadow
 
 		local divider = Creator.new("Frame", {
 			Size = UDim2.new(1, 0, 0, 1),
@@ -2394,7 +2473,7 @@ __mods["core.Window"] = function()
 
 		local actions = Creator.new("Frame", {
 			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -8, 0.5, 0),
+			Position = UDim2.new(1, -12, 0.5, 0),
 			Size = UDim2.new(0, 88, 0, 40),
 			BackgroundTransparency = 1,
 			ZIndex = 4,
@@ -2480,21 +2559,42 @@ __mods["core.Window"] = function()
 			BorderSizePixel = 0,
 			ScrollBarThickness = 0,
 			CanvasSize = UDim2.new(0, 0, 0, 0),
-			AutomaticCanvasSize = sidebar and Enum.AutomaticSize.Y or Enum.AutomaticSize.X,
 			ScrollingDirection = sidebar and Enum.ScrollingDirection.Y or Enum.ScrollingDirection.X,
 			ElasticBehavior = Enum.ElasticBehavior.Never,
 			Parent = nav,
 		})
 		self.navList = list
 
-		Creator.new("UIListLayout", {
+		local navLayout = Creator.new("UIListLayout", {
 			FillDirection = sidebar and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal,
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Padding = UDim.new(0, sidebar and 4 or 6),
-			HorizontalAlignment = sidebar and Enum.HorizontalAlignment.Left or Enum.HorizontalAlignment.Left,
+			HorizontalAlignment = Enum.HorizontalAlignment.Left,
 			VerticalAlignment = Enum.VerticalAlignment.Top,
 			Parent = list,
 		})
+		self.navLayout = navLayout
+
+		local navPadding = 0
+		local function updateNavCanvas()
+			local content = navLayout.AbsoluteContentSize or Vector2.new(0, 0)
+			local width = list.AbsoluteSize.X
+			local height = list.AbsoluteSize.Y
+			if sidebar then
+				if width <= 0 then
+					return
+				end
+				list.CanvasSize = UDim2.new(0, width, 0, math.ceil(content.Y + navPadding))
+			else
+				if height <= 0 then
+					return
+				end
+				list.CanvasSize = UDim2.new(0, math.ceil(content.X), 0, height)
+			end
+		end
+		self:_connect(navLayout:GetPropertyChangedSignal("AbsoluteContentSize"), updateNavCanvas)
+		self:_connect(list:GetPropertyChangedSignal("AbsoluteSize"), updateNavCanvas)
+		self._updateNavCanvas = updateNavCanvas
 
 		if sidebar then
 			nav.Size = UDim2.new(0, RAIL_WIDTH, 1, -TOPBAR_HEIGHT)
@@ -2507,8 +2607,9 @@ __mods["core.Window"] = function()
 				PaddingRight = UDim.new(0, 8),
 				Parent = list,
 			})
+			navPadding = 20
 			local divider = Creator.new("Frame", {
-				Size = UDim2.new(0, 1, 1, 0),
+				Size = UDim2.new(0, 1, 1, -28),
 				Position = UDim2.new(1, 0, 0, 0),
 				BackgroundColor3 = theme.colors.outlineVariant,
 				BackgroundTransparency = 0.7,
@@ -2557,26 +2658,19 @@ __mods["core.Window"] = function()
 			pages.Position = UDim2.new(0, 0, 0, TOPBAR_HEIGHT + STRIP_HEIGHT)
 		end
 
-		self.pageLayout = Creator.new("UIPageLayout", {
-			FillDirection = sidebar and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal,
-			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-			VerticalAlignment = Enum.VerticalAlignment.Center,
-			SortOrder = Enum.SortOrder.LayoutOrder,
-			ScrollWheelInputEnabled = false,
-			GamepadInputEnabled = false,
-			TouchInputEnabled = false,
-			EasingStyle = Enum.EasingStyle.Quint,
-			TweenTime = 0.32,
-			Parent = pages,
-		})
+		self.pageLayout = nil
 	end
 
 	function Window:createTab(props)
 		props = props or {}
 		local tab = Tab.new({ window = self, props = props })
 		table.insert(self.tabs, tab)
-		tab.item.LayoutOrder = #self.tabs
-		tab.page.LayoutOrder = #self.tabs
+		tab._index = #self.tabs
+		tab.item.LayoutOrder = tab._index
+		tab.page.LayoutOrder = tab._index
+		if self._updateNavCanvas then
+			self._updateNavCanvas()
+		end
 		if not self.selectedTab then
 			self:selectTab(tab, true)
 		end
@@ -2587,20 +2681,50 @@ __mods["core.Window"] = function()
 		if self.selectedTab == tab then
 			return
 		end
-		if self.selectedTab then
-			self.selectedTab:deselect()
+		local previous = self.selectedTab
+		if previous then
+			previous:deselect()
 		end
 		self.selectedTab = tab
 		tab.selected = true
 		tab:_applySelected()
 		tab:flush()
+		self:_swapPages(previous, tab, instant)
+	end
+
+	function Window:_swapPages(previous, tab, instant)
+		local theme = self.theme
+		local vertical = self.layout == "sidebar"
+		local rest = UDim2.fromScale(0, 0)
+		local enter = vertical and UDim2.new(0, 1, 0, 0) or UDim2.new(1, 0, 0, 0)
+		local leave = vertical and UDim2.new(0, -1, 0, 0) or UDim2.new(-1, 0, 0, 0)
+
+		if previous and previous ~= tab and previous.page then
+			if instant then
+				previous.page.Position = leave
+				previous.page.Visible = false
+			else
+				previous.page.Visible = true
+				Motion.tween(previous.page, { Position = leave }, theme.motion.standard)
+				task.delay(theme.motion.standard.time, function()
+					if previous.page and previous.page.Parent and self.selectedTab ~= previous then
+						previous.page.Visible = false
+						previous.page.Position = rest
+					end
+				end)
+			end
+		end
+
+		if not tab.page then
+			return
+		end
+
+		tab.page.Visible = true
 		if instant then
-			local tweenTime = self.pageLayout.TweenTime
-			self.pageLayout.TweenTime = 0
-			self.pageLayout:JumpToPage(tab.page)
-			self.pageLayout.TweenTime = tweenTime
+			tab.page.Position = rest
 		else
-			self.pageLayout:JumpToPage(tab.page)
+			tab.page.Position = enter
+			Motion.tween(tab.page, { Position = rest }, theme.motion.standard)
 		end
 	end
 

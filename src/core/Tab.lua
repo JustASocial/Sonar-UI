@@ -28,6 +28,12 @@ function Tab.new(ctx)
 	return self
 end
 
+function Tab:_connect(signal, callback)
+	local connection = signal:Connect(callback)
+	table.insert(self.connections, connection)
+	return connection
+end
+
 function Tab:_createSelector()
 	local window = self.window
 	local theme = window.theme
@@ -43,7 +49,7 @@ function Tab:_createSelector()
 	self.item = item
 
 	if sidebar then
-		item.Size = UDim2.new(1, -8, 0, 40)
+		item.Size = UDim2.new(1, 0, 0, 40)
 		item.AutomaticSize = Enum.AutomaticSize.None
 	else
 		item.Size = UDim2.new(0, 0, 0, 34)
@@ -150,32 +156,49 @@ function Tab:_createPage()
 	local page = Creator.new("ScrollingFrame", {
 		Name = "Page",
 		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromScale(0, 0),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 3,
 		ScrollBarImageColor3 = window.theme.colors.outlineVariant,
 		CanvasSize = UDim2.new(0, 0, 0, 0),
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		ScrollingDirection = Enum.ScrollingDirection.Y,
 		ElasticBehavior = Enum.ElasticBehavior.Never,
+		Visible = false,
 		Parent = window.pages,
 	})
 	self.page = page
 
-	Creator.new("UIListLayout", {
+	local layout = Creator.new("UIListLayout", {
 		Padding = UDim.new(0, 8),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
 		Parent = page,
 	})
+	self.pageLayout = layout
 
-	Creator.new("UIPadding", {
+	local padding = Creator.new("UIPadding", {
 		PaddingTop = UDim.new(0, 12),
 		PaddingBottom = UDim.new(0, 16),
 		PaddingLeft = UDim.new(0, 14),
 		PaddingRight = UDim.new(0, 14),
 		Parent = page,
 	})
+	self.pagePadding = padding
+
+	local function updateCanvas()
+		local width = page.AbsoluteSize.X
+		if width <= 0 then
+			return
+		end
+		local content = layout.AbsoluteContentSize or Vector2.new(0, 0)
+		local height = content.Y + padding.PaddingTop.Offset + padding.PaddingBottom.Offset
+		page.CanvasSize = UDim2.new(0, width, 0, math.ceil(height))
+	end
+	self._updateCanvas = updateCanvas
+
+	self:_connect(layout:GetPropertyChangedSignal("AbsoluteContentSize"), updateCanvas)
+	self:_connect(page:GetPropertyChangedSignal("AbsoluteSize"), updateCanvas)
 
 	self.contentFrame = page
 end
@@ -229,12 +252,14 @@ function Tab:_rebuild()
 	self.page = nil
 	self:_createSelector()
 	self:_createPage()
-	self.item.LayoutOrder = self._order or 1
-	self.page.LayoutOrder = self._order or 1
+	self.item.LayoutOrder = self._index or 1
+	self.page.LayoutOrder = self._index or 1
 	self:reset()
 	if self.selected then
 		self:flush()
 		self:_applySelected()
+		self.page.Visible = true
+		self.page.Position = UDim2.fromScale(0, 0)
 	end
 end
 

@@ -146,6 +146,8 @@ local SIGNAL_PROPERTIES = {
 	TouchEnded = true,
 }
 
+local layoutPass
+
 local InstanceMeta = {}
 local InstanceMethods = {}
 
@@ -176,6 +178,15 @@ function InstanceMethods:ClearAllChildren()
 	for _, child in ipairs(self:GetChildren()) do
 		child:Destroy()
 	end
+end
+
+function InstanceMethods:FindFirstChildOfClass(className)
+	for _, child in ipairs(self:GetChildren()) do
+		if child._class == className then
+			return child
+		end
+	end
+	return nil
 end
 
 function InstanceMethods:GetDescendants()
@@ -221,7 +232,7 @@ InstanceMeta.__index = function(self, key)
 		end
 		return self._signals[sigKey]
 	end
-	if key == "AbsoluteSize" or key == "AbsolutePosition" or key == "AbsoluteCanvasSize" then
+	if key == "AbsoluteSize" or key == "AbsolutePosition" or key == "AbsoluteCanvasSize" or key == "AbsoluteContentSize" then
 		return Vector2.new(400, 400)
 	end
 	if key == "CanvasPosition" then
@@ -244,10 +255,17 @@ InstanceMeta.__newindex = function(self, key, value)
 		self._props.Parent = value
 		if value and value._children then
 			table.insert(value._children, self)
+			layoutPass(value)
 		end
 		return
 	end
 	self._props[key] = value
+	if key == "Size" or key == "LayoutOrder" then
+		local parent = self._props.Parent
+		if parent then
+			layoutPass(parent)
+		end
+	end
 	local sig = self._signals["__sig_" .. key]
 	if sig then
 		sig:Fire(value)
@@ -302,7 +320,7 @@ InstanceMeta.__index = function(self, key)
 		end
 		return self._signals[sigKey]
 	end
-	if key == "AbsoluteSize" or key == "AbsolutePosition" or key == "AbsoluteCanvasSize" then
+	if key == "AbsoluteSize" or key == "AbsolutePosition" or key == "AbsoluteCanvasSize" or key == "AbsoluteContentSize" then
 		return Vector2.new(400, 400)
 	end
 	if key == "CanvasPosition" then
@@ -455,6 +473,94 @@ task = {
 	cancel = function()
 	end,
 }
+
+local LAYOUT_IGNORED = {
+	UIListLayout = true,
+	UIGridLayout = true,
+	UIPadding = true,
+	UISizeConstraint = true,
+	UIGradient = true,
+	UICorner = true,
+	UIStroke = true,
+	UIPageLayout = true,
+}
+
+local function resolveAxis(udim, parentAbsolute)
+	if udim.Scale == 1 then
+		return parentAbsolute
+	end
+	return udim.Scale * parentAbsolute + udim.Offset
+end
+
+local function resolveSize(instance)
+	local parentWidth, parentHeight = 400, 400
+	local parent = instance.Parent
+	if parent and parent._props and parent._props.Size then
+		local size = parent._props.Size
+		parentWidth = resolveAxis(size.X, parent.AbsoluteSize.X)
+		parentHeight = resolveAxis(size.Y, parent.AbsoluteSize.Y)
+	end
+	local size = instance._props.Size
+	if not size then
+		return 0, 0
+	end
+	return resolveAxis(size.X, parentWidth), resolveAxis(size.Y, parentHeight)
+end
+
+layoutPass = function(parent)
+	local layout = parent:FindFirstChildOfClass("UIListLayout")
+	if not layout then
+		return
+	end
+	local horizontal = layout._props.FillDirection == Enum.FillDirection.Horizontal
+	local padding = layout._props.Padding or { Scale = 0, Offset = 0 }
+	local gap = padding.Offset
+	local x, y = 0, 0
+	local maxX, maxY = 0, 0
+
+	local children = {}
+	for _, child in ipairs(parent:GetChildren()) do
+		if not LAYOUT_IGNORED[child._class] then
+			table.insert(children, child)
+		end
+	end
+	table.sort(children, function(a, b)
+		return (a._props.LayoutOrder or 0) < (b._props.LayoutOrder or 0)
+	end)
+
+	for _, child in ipairs(children) do
+		local width, height = resolveSize(child)
+		child._props.Position = {
+			X = { Scale = 0, Offset = horizontal and x or 0 },
+			Y = { Scale = 0, Offset = horizontal and 0 or y },
+		}
+		if horizontal then
+			x = x + width + gap
+			maxX = math.max(maxX, x)
+			maxY = math.max(maxY, height)
+		else
+			y = y + height + gap
+			maxX = math.max(maxX, width)
+			maxY = math.max(maxY, y)
+		end
+	end
+
+	layout._props.AbsoluteContentSize = Vector2.new(maxX, maxY)
+	local sig = layout._signals["__sig_AbsoluteContentSize"]
+	if sig then
+		sig:Fire(layout._props.AbsoluteContentSize)
+	end
+end
+
+function __size(instance)
+	return resolveSize(instance)
+end
+
+function __layout(parent)
+	if parent then
+		layoutPass(parent)
+	end
+end
 
 function __fire(target, signalName, ...)
 	local direct = target[signalName]

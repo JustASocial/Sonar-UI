@@ -28,7 +28,46 @@ function Container.buildChild(self, handle)
 	end
 	handle.__built = true
 	Creator.window = self.window
-	handle:_build(self.contentFrame, handle._order)
+	local ok, err = pcall(function()
+		handle:_build(self.contentFrame, handle._order)
+	end)
+	if not ok then
+		self:createError((handle.__type or "Element") .. ": " .. tostring(err))
+	end
+end
+
+function Container.createError(self, message)
+	if not self.contentFrame then
+		return
+	end
+	local theme = self.window.theme
+	local frame = Creator.new("Frame", {
+		Name = "Error",
+		LayoutOrder = 99999,
+		Size = UDim2.new(1, 0, 0, 64),
+		BackgroundColor3 = theme.colors.errorContainer,
+		BorderSizePixel = 0,
+		Parent = self.contentFrame,
+	}, { BackgroundColor3 = "errorContainer" })
+
+	Creator.new("UICorner", {
+		CornerRadius = theme.shape.element,
+		Parent = frame,
+	})
+
+	Creator.new("TextLabel", {
+		Position = UDim2.new(0, 12, 0, 8),
+		Size = UDim2.new(1, -24, 1, -16),
+		BackgroundTransparency = 1,
+		Font = theme.fonts.mono,
+		Text = tostring(message),
+		TextColor3 = theme.colors.onErrorContainer,
+		TextSize = 12,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		Parent = frame,
+	}, { TextColor3 = "onErrorContainer" })
 end
 
 function Container.flush(self)
@@ -45,35 +84,54 @@ function Container.createElement(self, typeName, props)
 	local Elements = require(script.Parent.Parent.elements.Init)
 	local module = Elements.get(typeName)
 	if not module then
-		error("[Sonar] unknown element type: " .. tostring(typeName))
+		self:createError("unknown element type: " .. tostring(typeName))
+		return nil
 	end
-	local handle = module.new({
-		window = self.window,
-		container = self,
-		props = props or {},
-	})
+	local ok, handle = pcall(function()
+		return module.new({
+			window = self.window,
+			container = self,
+			props = props or {},
+		})
+	end)
+	if not ok then
+		self:createError(typeName .. ": " .. tostring(handle))
+		return nil
+	end
 	self:addChild(handle)
 	return handle
 end
 
 function Container.createSection(self, props)
 	local Section = require(script.Parent.Section)
-	local section = Section.new({
-		window = self.window,
-		container = self,
-		props = props or {},
-	})
+	local ok, section = pcall(function()
+		return Section.new({
+			window = self.window,
+			container = self,
+			props = props or {},
+		})
+	end)
+	if not ok then
+		self:createError("Section: " .. tostring(section))
+		return nil
+	end
 	self:addChild(section)
 	return section
 end
 
 function Container.createGroup(self, props)
 	local Group = require(script.Parent.Group)
-	local group = Group.new({
-		window = self.window,
-		container = self,
-		props = props or {},
-	})
+	local ok, group = pcall(function()
+		return Group.new({
+			window = self.window,
+			container = self,
+			props = props or {},
+		})
+	end)
+	if not ok then
+		self:createError("Group: " .. tostring(group))
+		return nil
+	end
 	self:addChild(group)
 	return group
 end

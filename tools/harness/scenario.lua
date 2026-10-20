@@ -155,6 +155,25 @@ print("selected:", window.selectedTab.name)
 window:selectTab(tab)
 print("selected:", window.selectedTab.name)
 
+print("--- layout ---")
+do
+	local page = tab.page
+	local canvas = page.CanvasSize
+	local contentWidth, contentHeight = __size(button.main)
+	print("page canvas: " .. tostring(canvas.X.Offset) .. "x" .. tostring(canvas.Y.Offset))
+	print("element size: " .. tostring(contentWidth) .. "x" .. tostring(contentHeight))
+	print("element position: y=" .. tostring(button.main.Position.Y.Offset))
+	print("nav canvas: " .. tostring(window.navList.CanvasSize.Y.Offset))
+	for index, entry in ipairs(window.tabs) do
+		print("tab " .. index .. " item y=" .. tostring(entry.item.Position.Y.Offset) .. " visible=" .. tostring(entry.page.Visible))
+	end
+	assert(canvas.X.Offset > 0, "page canvas width must be positive")
+	assert(canvas.Y.Offset > 0, "page canvas height must be positive")
+	assert(contentWidth > 0, "element width must be positive")
+	assert(window.navList.CanvasSize.Y.Offset > 0, "nav canvas height must be positive")
+	print("layout assertions passed")
+end
+
 print("--- theme and layout ---")
 window:setTheme({ mode = "light" })
 print("theme mode:", window.theme.mode)
