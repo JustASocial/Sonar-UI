@@ -1,4 +1,5 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Scroll = require(script.Parent.Parent.core.Scroll)
 local Creator = require(script.Parent.Parent.core.Creator)
 
 local Console = {}
@@ -133,14 +134,13 @@ function Console.new(ctx)
 			ScrollBarThickness = 3,
 			ScrollBarImageColor3 = theme.colors.outlineVariant,
 			CanvasSize = UDim2.new(0, 0, 0, 0),
-			AutomaticCanvasSize = Enum.AutomaticSize.Y,
 			ScrollingDirection = Enum.ScrollingDirection.Y,
 			ElasticBehavior = Enum.ElasticBehavior.Never,
 			Parent = main,
 		})
 		self.scroller = scroller
 
-		Creator.new("UIListLayout", {
+		local listLayout = Creator.new("UIListLayout", {
 			Padding = UDim.new(0, 2),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Parent = scroller,
@@ -153,6 +153,8 @@ function Console.new(ctx)
 			PaddingRight = UDim.new(0, 12),
 			Parent = scroller,
 		})
+
+		Scroll.bindLayout(scroller, listLayout, "Y", 20)
 
 		for _, text in ipairs(self.lines) do
 			self:write(text, "info")

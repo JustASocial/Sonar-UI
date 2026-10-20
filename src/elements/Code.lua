@@ -2,6 +2,7 @@ local Element = require(script.Parent.Parent.core.Element)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
+local Scroll = require(script.Parent.Parent.core.Scroll)
 local Variables = require(script.Parent.Parent.core.Variables)
 
 local Code = {}
@@ -188,7 +189,6 @@ function Code.new(ctx)
 			ScrollBarThickness = 3,
 			ScrollBarImageColor3 = theme.colors.outlineVariant,
 			CanvasSize = UDim2.new(0, 0, 0, 0),
-			AutomaticCanvasSize = Enum.AutomaticSize.Y,
 			ScrollingDirection = Enum.ScrollingDirection.Y,
 			ElasticBehavior = Enum.ElasticBehavior.Never,
 			Parent = main,
@@ -218,6 +218,8 @@ function Code.new(ctx)
 			PaddingRight = UDim.new(0, 14),
 			Parent = scroller,
 		})
+
+		Scroll.bindContent(scroller, code, "Y", 20)
 
 		self:Set(props.Code or "")
 	end

@@ -171,6 +171,20 @@ do
 	assert(canvas.Y.Offset > 0, "page canvas height must be positive")
 	assert(contentWidth > 0, "element width must be positive")
 	assert(window.navList.CanvasSize.Y.Offset > 0, "nav canvas height must be positive")
+
+	local codeCanvas = code.scroller.CanvasSize.Y.Offset
+	local consoleCanvas = console.scroller.CanvasSize.Y.Offset
+	local stepperCanvas = stepper.scroller.CanvasSize.X.Offset
+	__fire(dropdown.trigger, "MouseButton1Click")
+	local dropdownCanvas = dropdown.menuList.CanvasSize.Y.Offset
+	print("code canvas: " .. tostring(codeCanvas))
+	print("console canvas: " .. tostring(consoleCanvas))
+	print("dropdown canvas: " .. tostring(dropdownCanvas))
+	print("stepper canvas: " .. tostring(stepperCanvas))
+	assert(codeCanvas > 0, "code canvas must have height")
+	assert(consoleCanvas > 0, "console canvas must have height")
+	assert(dropdownCanvas > 0, "dropdown canvas must have height")
+	assert(stepperCanvas > 0, "stepper canvas must have width")
 	print("layout assertions passed")
 end
 

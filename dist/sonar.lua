@@ -1546,6 +1546,63 @@ __mods["core.Popup"] = function()
 
 end
 
+__mods["core.Scroll"] = function()
+	local Scroll = {}
+
+	function Scroll.bindContent(scroller, content, mode, padding)
+		padding = padding or 0
+
+		local function update()
+			local size = content.AbsoluteSize
+			if mode == "X" then
+				local width = math.ceil(size.X + padding)
+				if width <= 0 then
+					return
+				end
+				scroller.CanvasSize = UDim2.new(0, width, 0, size.Y)
+			else
+				local height = math.ceil(size.Y + padding)
+				if height <= 0 then
+					return
+				end
+				scroller.CanvasSize = UDim2.new(0, size.X, 0, height)
+			end
+		end
+
+		content:GetPropertyChangedSignal("AbsoluteSize"):Connect(update)
+		update()
+		return update
+	end
+
+	function Scroll.bindLayout(scroller, layout, mode, padding)
+		padding = padding or 0
+
+		local function update()
+			local size = layout.AbsoluteContentSize
+			if mode == "X" then
+				local width = math.ceil(size.X + padding)
+				if width <= 0 then
+					return
+				end
+				scroller.CanvasSize = UDim2.new(0, width, 0, scroller.AbsoluteSize.Y)
+			else
+				local height = math.ceil(size.Y + padding)
+				if height <= 0 then
+					return
+				end
+				scroller.CanvasSize = UDim2.new(0, scroller.AbsoluteSize.X, 0, height)
+			end
+		end
+
+		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(update)
+		update()
+		return update
+	end
+
+	return Scroll
+
+end
+
 __mods["core.Section"] = function()
 	local Creator = __require("core.Creator")
 	local Motion = __require("core.Motion")
@@ -3798,6 +3855,7 @@ __mods["elements.Code"] = function()
 	local Creator = __require("core.Creator")
 	local Motion = __require("core.Motion")
 	local Icons = __require("icons.Init")
+	local Scroll = __require("core.Scroll")
 	local Variables = __require("core.Variables")
 
 	local Code = {}
@@ -3984,7 +4042,6 @@ __mods["elements.Code"] = function()
 				ScrollBarThickness = 3,
 				ScrollBarImageColor3 = theme.colors.outlineVariant,
 				CanvasSize = UDim2.new(0, 0, 0, 0),
-				AutomaticCanvasSize = Enum.AutomaticSize.Y,
 				ScrollingDirection = Enum.ScrollingDirection.Y,
 				ElasticBehavior = Enum.ElasticBehavior.Never,
 				Parent = main,
@@ -4014,6 +4071,8 @@ __mods["elements.Code"] = function()
 				PaddingRight = UDim.new(0, 14),
 				Parent = scroller,
 			})
+
+			Scroll.bindContent(scroller, code, "Y", 20)
 
 			self:Set(props.Code or "")
 		end
@@ -4645,6 +4704,7 @@ end
 
 __mods["elements.Console"] = function()
 	local Element = __require("core.Element")
+	local Scroll = __require("core.Scroll")
 	local Creator = __require("core.Creator")
 
 	local Console = {}
@@ -4779,14 +4839,13 @@ __mods["elements.Console"] = function()
 				ScrollBarThickness = 3,
 				ScrollBarImageColor3 = theme.colors.outlineVariant,
 				CanvasSize = UDim2.new(0, 0, 0, 0),
-				AutomaticCanvasSize = Enum.AutomaticSize.Y,
 				ScrollingDirection = Enum.ScrollingDirection.Y,
 				ElasticBehavior = Enum.ElasticBehavior.Never,
 				Parent = main,
 			})
 			self.scroller = scroller
 
-			Creator.new("UIListLayout", {
+			local listLayout = Creator.new("UIListLayout", {
 				Padding = UDim.new(0, 2),
 				SortOrder = Enum.SortOrder.LayoutOrder,
 				Parent = scroller,
@@ -4799,6 +4858,8 @@ __mods["elements.Console"] = function()
 				PaddingRight = UDim.new(0, 12),
 				Parent = scroller,
 			})
+
+			Scroll.bindLayout(scroller, listLayout, "Y", 20)
 
 			for _, text in ipairs(self.lines) do
 				self:write(text, "info")
@@ -4906,6 +4967,7 @@ __mods["elements.Dropdown"] = function()
 	local Creator = __require("core.Creator")
 	local Motion = __require("core.Motion")
 	local Icons = __require("icons.Init")
+	local Scroll = __require("core.Scroll")
 	local Variables = __require("core.Variables")
 
 	local Dropdown = {}
@@ -5106,14 +5168,13 @@ __mods["elements.Dropdown"] = function()
 				ScrollBarThickness = 3,
 				ScrollBarImageColor3 = theme.colors.outlineVariant,
 				CanvasSize = UDim2.new(0, 0, 0, 0),
-				AutomaticCanvasSize = Enum.AutomaticSize.Y,
 				ScrollingDirection = Enum.ScrollingDirection.Y,
 				ElasticBehavior = Enum.ElasticBehavior.Never,
 				Parent = menu,
 			})
 			self.menuList = list
 
-			Creator.new("UIListLayout", {
+			local listLayout = Creator.new("UIListLayout", {
 				Padding = UDim.new(0, 2),
 				SortOrder = Enum.SortOrder.LayoutOrder,
 				Parent = list,
@@ -5126,6 +5187,8 @@ __mods["elements.Dropdown"] = function()
 				PaddingRight = UDim.new(0, 6),
 				Parent = list,
 			})
+
+			Scroll.bindLayout(list, listLayout, "Y", 12)
 
 			self.rows = {}
 			for index, option in ipairs(self.options) do
@@ -7275,6 +7338,7 @@ __mods["elements.Stepper"] = function()
 	local Creator = __require("core.Creator")
 	local Motion = __require("core.Motion")
 	local Icons = __require("icons.Init")
+	local Scroll = __require("core.Scroll")
 
 	local Stepper = {}
 
@@ -7336,8 +7400,7 @@ __mods["elements.Stepper"] = function()
 				ScrollBarThickness = 3,
 				ScrollBarImageColor3 = theme.colors.outlineVariant,
 				CanvasSize = UDim2.new(0, 0, 0, 0),
-				AutomaticCanvasSize = Enum.AutomaticSize.Y,
-				ScrollingDirection = Enum.ScrollingDirection.Y,
+				ScrollingDirection = Enum.ScrollingDirection.X,
 				ElasticBehavior = Enum.ElasticBehavior.Never,
 				Parent = main,
 			})
@@ -7351,6 +7414,8 @@ __mods["elements.Stepper"] = function()
 				Parent = scroller,
 			})
 			self.inner = inner
+
+			Scroll.bindContent(scroller, inner, "X", 0)
 
 			self.items = {}
 			for index, step in ipairs(self.steps) do

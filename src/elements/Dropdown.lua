@@ -2,6 +2,7 @@ local Element = require(script.Parent.Parent.core.Element)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
+local Scroll = require(script.Parent.Parent.core.Scroll)
 local Variables = require(script.Parent.Parent.core.Variables)
 
 local Dropdown = {}
@@ -202,14 +203,13 @@ function Dropdown.new(ctx)
 			ScrollBarThickness = 3,
 			ScrollBarImageColor3 = theme.colors.outlineVariant,
 			CanvasSize = UDim2.new(0, 0, 0, 0),
-			AutomaticCanvasSize = Enum.AutomaticSize.Y,
 			ScrollingDirection = Enum.ScrollingDirection.Y,
 			ElasticBehavior = Enum.ElasticBehavior.Never,
 			Parent = menu,
 		})
 		self.menuList = list
 
-		Creator.new("UIListLayout", {
+		local listLayout = Creator.new("UIListLayout", {
 			Padding = UDim.new(0, 2),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Parent = list,
@@ -222,6 +222,8 @@ function Dropdown.new(ctx)
 			PaddingRight = UDim.new(0, 6),
 			Parent = list,
 		})
+
+		Scroll.bindLayout(list, listLayout, "Y", 12)
 
 		self.rows = {}
 		for index, option in ipairs(self.options) do

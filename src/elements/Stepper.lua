@@ -2,6 +2,7 @@ local Element = require(script.Parent.Parent.core.Element)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
+local Scroll = require(script.Parent.Parent.core.Scroll)
 
 local Stepper = {}
 
@@ -63,8 +64,7 @@ function Stepper.new(ctx)
 			ScrollBarThickness = 3,
 			ScrollBarImageColor3 = theme.colors.outlineVariant,
 			CanvasSize = UDim2.new(0, 0, 0, 0),
-			AutomaticCanvasSize = Enum.AutomaticSize.Y,
-			ScrollingDirection = Enum.ScrollingDirection.Y,
+			ScrollingDirection = Enum.ScrollingDirection.X,
 			ElasticBehavior = Enum.ElasticBehavior.Never,
 			Parent = main,
 		})
@@ -78,6 +78,8 @@ function Stepper.new(ctx)
 			Parent = scroller,
 		})
 		self.inner = inner
+
+		Scroll.bindContent(scroller, inner, "X", 0)
 
 		self.items = {}
 		for index, step in ipairs(self.steps) do
