@@ -1,0 +1,8 @@
+sourcemaps.json
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+*.rbxmx
+*.rbxmx.lock
+.DS_Store

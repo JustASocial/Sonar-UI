@@ -1,0 +1,14 @@
+std = "roblox"
+
+[config]
+max_line_length = 200
+
+[selene]
+base = "lua51"
+
+[selene.rules]
+mixed_table = "allow"
+global_usage = "allow"
+multiple_statements = "allow"
+shadowing = "allow"
+unused_variable = "allow"
