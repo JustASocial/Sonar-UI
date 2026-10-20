@@ -10,7 +10,7 @@
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "SonarExample": {
-          "$path": "example/Example.client.lua"
+          "$path": "example/Example.lua"
         }
       }
     }
