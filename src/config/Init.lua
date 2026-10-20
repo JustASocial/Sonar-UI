@@ -146,9 +146,6 @@ function ConfigModule:read()
 end
 
 function ConfigModule:save()
-	if self.autosave == false then
-		return false
-	end
 	local payload = self:serialize()
 	return self:write(payload)
 end

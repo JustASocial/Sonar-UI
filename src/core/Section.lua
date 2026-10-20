@@ -189,4 +189,6 @@ function Section:_destroy()
 	end
 end
 
+setmetatable(Section, { __index = Container })
+
 return Section

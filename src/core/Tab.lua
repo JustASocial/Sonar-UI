@@ -227,8 +227,8 @@ function Tab:_rebuild()
 	end
 	self.item = nil
 	self.page = nil
-	self._createSelector()
-	self._createPage()
+	self:_createSelector()
+	self:_createPage()
 	self.item.LayoutOrder = self._order or 1
 	self.page.LayoutOrder = self._order or 1
 	self:reset()
@@ -249,5 +249,7 @@ function Tab:_destroy()
 		self.item:Destroy()
 	end
 end
+
+setmetatable(Tab, { __index = Container })
 
 return Tab

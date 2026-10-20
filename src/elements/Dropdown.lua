@@ -366,7 +366,7 @@ function Dropdown.new(ctx)
 					task.spawn(props.Callback, self.value)
 				end
 			else
-				self:Set(option, true)
+				self:Set(option.Title or tostring(option), true)
 				self:close()
 			end
 		end)

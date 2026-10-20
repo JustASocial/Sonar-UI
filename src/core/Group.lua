@@ -101,4 +101,6 @@ function Group:_destroy()
 	end
 end
 
+setmetatable(Group, { __index = Container })
+
 return Group

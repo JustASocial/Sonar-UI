@@ -67,6 +67,7 @@ function Keybind.new(ctx)
 			BorderSizePixel = 0,
 			Parent = trigger,
 		}, { BackgroundColor3 = "onSurface" })
+		self.state = state
 
 		local label = Creator.new("TextLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),

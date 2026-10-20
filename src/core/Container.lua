@@ -137,13 +137,39 @@ end
 
 setmetatable(Container, {
 	__index = function(_, key)
-		local name = key:match("^Create(.+)$")
+		local Elements = require(script.Parent.Parent.elements.Init)
+		local name = key:match("^[Cc]reate(.+)$")
 		if name then
-			local Elements = require(script.Parent.Parent.elements.Init)
 			if Elements.get(name) then
 				return function(self, props)
 					return Container.createElement(self, name, props)
 				end
+			end
+			if name == "Section" then
+				return function(self, props)
+					return Container.createSection(self, props)
+				end
+			end
+			if name == "Group" then
+				return function(self, props)
+					return Container.createGroup(self, props)
+				end
+			end
+			return nil
+		end
+		if key == "Section" then
+			return function(self, props)
+				return Container.createSection(self, props)
+			end
+		end
+		if key == "Group" then
+			return function(self, props)
+				return Container.createGroup(self, props)
+			end
+		end
+		if Elements.get(key) then
+			return function(self, props)
+				return Container.createElement(self, key, props)
 			end
 		end
 		return nil

@@ -3,7 +3,7 @@ local Motion = require(script.Parent.Motion)
 local Theme = require(script.Parent.Parent.theme.Init)
 local Variables = require(script.Parent.Variables)
 local Locale = require(script.Parent.Parent.locale.Init)
-local ConfigManager = require(script.Parent.Parent.config.Init)
+local Config = require(script.Parent.Parent.config.Init)
 local Icons = require(script.Parent.Parent.icons.Init)
 local Tab = require(script.Parent.Tab)
 local Notification = require(script.Parent.Notification)
@@ -50,7 +50,7 @@ function Window.new(props)
 
 	Creator.window = self
 
-	self.configManager = ConfigManager.new(self)
+	self.configManager = Config.Manager.new(self)
 	self.locale = Locale.new(props.Locale or {})
 	self.locale:onChange(function()
 		self:_refreshLocale()

@@ -191,6 +191,7 @@ function Stepper.new(ctx)
 			icon = icon,
 			connector = connector,
 			caption = caption,
+			click = clickable,
 		}
 	end
 
