@@ -370,10 +370,26 @@ __mods["core.Container"] = function()
 		end
 		self.built = true
 		local children = self.children
-		for index, handle in ipairs(children) do
-			self:buildChild(handle)
+		local index = 0
+
+		local function step()
+			local budget = 6
+			local batch = {}
+			for _ = 1, budget do
+				if index >= #children then
+					break
+				end
+				index = index + 1
+				self:buildChild(children[index])
+				table.insert(batch, children[index])
+			end
+			self:_reveal(batch)
+			if index < #children then
+				task.defer(step)
+			end
 		end
-		self:_reveal(children)
+
+		step()
 	end
 
 	function Container:_reveal(children)
@@ -974,7 +990,7 @@ __mods["core.Element"] = function()
 		local targets = {}
 		local originals = {}
 
-		for _, child in ipairs(main:GetDescendants()) do
+		for _, child in ipairs(main:GetChildren()) do
 			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ImageLabel") then
 				table.insert(targets, child)
 				if child:IsA("ImageLabel") then
@@ -1536,7 +1552,7 @@ __mods["core.Popup"] = function()
 			Parent = overlay,
 		}, { BackgroundColor3 = "scrim" })
 
-		local dialog = Creator.new("Frame", {
+		local dialog = Creator.new("CanvasGroup", {
 			Name = "Dialog",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
@@ -1544,19 +1560,28 @@ __mods["core.Popup"] = function()
 			BackgroundColor3 = theme.colors.surfaceContainerHigh,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
+			GroupTransparency = 1,
 			Parent = scrim,
+		}, { BackgroundColor3 = "surfaceContainerHigh" })
+
+		local dialogSurface = Creator.new("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = theme.colors.surfaceContainerHigh,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			Parent = dialog,
 		}, { BackgroundColor3 = "surfaceContainerHigh" })
 
 		Creator.new("UICorner", {
 			CornerRadius = theme.shape.dialog,
-			Parent = dialog,
+			Parent = dialogSurface,
 		})
 
 		local stack = Creator.new("UIListLayout", {
 			FillDirection = Enum.FillDirection.Vertical,
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Padding = UDim.new(0, 14),
-			Parent = dialog,
+			Parent = dialogSurface,
 		})
 
 		Creator.new("UIPadding", {
@@ -1564,7 +1589,7 @@ __mods["core.Popup"] = function()
 			PaddingBottom = UDim.new(0, 24),
 			PaddingLeft = UDim.new(0, 24),
 			PaddingRight = UDim.new(0, 24),
-			Parent = dialog,
+			Parent = dialogSurface,
 		})
 
 		local icon = nil
@@ -1576,7 +1601,7 @@ __mods["core.Popup"] = function()
 				ImageColor3 = theme.colors.onSurfaceVariant,
 				ScaleType = Enum.ScaleType.Fit,
 				LayoutOrder = 1,
-				Parent = dialog,
+				Parent = dialogSurface,
 			}, { ImageColor3 = "onSurfaceVariant" })
 		end
 
@@ -1592,7 +1617,7 @@ __mods["core.Popup"] = function()
 			TextYAlignment = Enum.TextYAlignment.Top,
 			TextWrapped = true,
 			LayoutOrder = 2,
-			Parent = dialog,
+			Parent = dialogSurface,
 		}, { TextColor3 = "onSurface" })
 
 		local content = nil
@@ -1609,7 +1634,7 @@ __mods["core.Popup"] = function()
 				TextYAlignment = Enum.TextYAlignment.Top,
 				TextWrapped = true,
 				LayoutOrder = 3,
-				Parent = dialog,
+				Parent = dialogSurface,
 			}, { TextColor3 = "onSurfaceVariant" })
 		end
 
@@ -1617,7 +1642,7 @@ __mods["core.Popup"] = function()
 			Size = UDim2.new(1, 0, 0, 40),
 			BackgroundTransparency = 1,
 			LayoutOrder = 4,
-			Parent = dialog,
+			Parent = dialogSurface,
 		})
 
 		Creator.new("UIListLayout", {
@@ -1635,7 +1660,7 @@ __mods["core.Popup"] = function()
 			end
 			closed = true
 			Motion.tween(scrim, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
-			Motion.tween(dialog, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+			Motion.tween(dialog, { GroupTransparency = 1 }, theme.motion.emphasizedAccelerate)
 			task.delay(theme.motion.emphasizedAccelerate.time, function()
 				scrim:Destroy()
 			end)
@@ -1661,7 +1686,7 @@ __mods["core.Popup"] = function()
 		end)
 
 		Motion.tween(scrim, { BackgroundTransparency = 0.6 }, theme.motion.emphasizedDecelerate)
-		Motion.tween(dialog, { BackgroundTransparency = 0 }, theme.motion.emphasizedDecelerate)
+		Motion.tween(dialog, { GroupTransparency = 0 }, theme.motion.emphasizedDecelerate)
 
 		return {
 			Close = close,
@@ -1676,6 +1701,14 @@ end
 __mods["core.Scroll"] = function()
 	local Scroll = {}
 
+	local function applyCanvas(scroller, width, height)
+		local current = scroller.CanvasSize
+		if current.X.Offset == width and current.Y.Offset == height then
+			return
+		end
+		scroller.CanvasSize = UDim2.new(0, width, 0, height)
+	end
+
 	function Scroll.bindContent(scroller, content, mode, padding)
 		padding = padding or 0
 
@@ -1686,13 +1719,13 @@ __mods["core.Scroll"] = function()
 				if width <= 0 then
 					return
 				end
-				scroller.CanvasSize = UDim2.new(0, width, 0, size.Y)
+				applyCanvas(scroller, width, size.Y)
 			else
 				local height = math.ceil(size.Y + padding)
 				if height <= 0 then
 					return
 				end
-				scroller.CanvasSize = UDim2.new(0, size.X, 0, height)
+				applyCanvas(scroller, size.X, height)
 			end
 		end
 
@@ -1711,13 +1744,13 @@ __mods["core.Scroll"] = function()
 				if width <= 0 then
 					return
 				end
-				scroller.CanvasSize = UDim2.new(0, width, 0, scroller.AbsoluteSize.Y)
+				applyCanvas(scroller, width, scroller.AbsoluteSize.Y)
 			else
 				local height = math.ceil(size.Y + padding)
 				if height <= 0 then
 					return
 				end
-				scroller.CanvasSize = UDim2.new(0, scroller.AbsoluteSize.X, 0, height)
+				applyCanvas(scroller, scroller.AbsoluteSize.X, height)
 			end
 		end
 
@@ -2208,6 +2241,10 @@ __mods["core.Tab"] = function()
 			end
 			local content = layout.AbsoluteContentSize or Vector2.new(0, 0)
 			local height = content.Y + padding.PaddingTop.Offset + padding.PaddingBottom.Offset
+			local current = page.CanvasSize
+			if current.X.Offset == width and current.Y.Offset == math.ceil(height) then
+				return
+			end
 			page.CanvasSize = UDim2.new(0, width, 0, math.ceil(height))
 		end
 		self._updateCanvas = updateCanvas
@@ -2940,12 +2977,20 @@ __mods["core.Window"] = function()
 				if width <= 0 then
 					return
 				end
-				list.CanvasSize = UDim2.new(0, width, 0, math.ceil(content.Y + navPadding))
+				local target = math.ceil(content.Y + navPadding)
+				if list.CanvasSize.Y.Offset == target then
+					return
+				end
+				list.CanvasSize = UDim2.new(0, width, 0, target)
 			else
 				if height <= 0 then
 					return
 				end
-				list.CanvasSize = UDim2.new(0, math.ceil(content.X), 0, height)
+				local target = math.ceil(content.X)
+				if list.CanvasSize.X.Offset == target then
+					return
+				end
+				list.CanvasSize = UDim2.new(0, target, 0, height)
 			end
 		end
 		self:_connect(navLayout:GetPropertyChangedSignal("AbsoluteContentSize"), updateNavCanvas)
@@ -2998,20 +3043,36 @@ __mods["core.Window"] = function()
 
 	function Window:_buildPages()
 		local sidebar = self.layout == "sidebar"
+		local inset = 8
 		local pages = Creator.new("Frame", {
 			Name = "Pages",
-			BackgroundTransparency = 1,
+			BackgroundColor3 = self.theme.colors.surfaceContainer,
+			BackgroundTransparency = 0,
+			BorderSizePixel = 0,
 			ClipsDescendants = true,
 			Parent = self.surface,
-		})
+		}, { BackgroundColor3 = "surfaceContainer" })
 		self.pages = pages
 
+		Creator.new("UICorner", {
+			CornerRadius = self.theme.shape.card,
+			Parent = pages,
+		})
+
+		Creator.new("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = self.theme.colors.outlineVariant,
+			Transparency = 0.6,
+			Thickness = 1,
+			Parent = pages,
+		}, { Color = "outlineVariant" })
+
 		if sidebar then
-			pages.Size = UDim2.new(1, -RAIL_WIDTH, 1, -TOPBAR_HEIGHT)
-			pages.Position = UDim2.new(0, RAIL_WIDTH, 0, TOPBAR_HEIGHT)
+			pages.Size = UDim2.new(1, -(RAIL_WIDTH + inset * 2), 1, -(TOPBAR_HEIGHT + inset * 2))
+			pages.Position = UDim2.new(0, RAIL_WIDTH + inset, 0, TOPBAR_HEIGHT + inset)
 		else
-			pages.Size = UDim2.new(1, 0, 1, -(TOPBAR_HEIGHT + STRIP_HEIGHT))
-			pages.Position = UDim2.new(0, 0, 0, TOPBAR_HEIGHT + STRIP_HEIGHT)
+			pages.Size = UDim2.new(1, -(inset * 2), 1, -(TOPBAR_HEIGHT + STRIP_HEIGHT + inset * 2))
+			pages.Position = UDim2.new(0, inset, 0, TOPBAR_HEIGHT + STRIP_HEIGHT + inset)
 		end
 
 		self.pageLayout = nil
@@ -3053,22 +3114,10 @@ __mods["core.Window"] = function()
 		local vertical = self.layout == "sidebar"
 		local rest = UDim2.fromScale(0, 0)
 		local enter = vertical and UDim2.new(0, 1, 0, 0) or UDim2.new(1, 0, 0, 0)
-		local leave = vertical and UDim2.new(0, -1, 0, 0) or UDim2.new(-1, 0, 0, 0)
 
 		if previous and previous ~= tab and previous.page then
-			if instant then
-				previous.page.Position = leave
-				previous.page.Visible = false
-			else
-				previous.page.Visible = true
-				Motion.tween(previous.page, { Position = leave }, theme.motion.standard)
-				task.delay(theme.motion.standard.time, function()
-					if previous.page and previous.page.Parent and self.selectedTab ~= previous then
-						previous.page.Visible = false
-						previous.page.Position = rest
-					end
-				end)
-			end
+			previous.page.Visible = false
+			previous.page.Position = rest
 		end
 
 		if not tab.page then
@@ -3080,7 +3129,7 @@ __mods["core.Window"] = function()
 			tab.page.Position = rest
 		else
 			tab.page.Position = enter
-			Motion.tween(tab.page, { Position = rest }, theme.motion.standard)
+			Motion.tween(tab.page, { Position = rest }, theme.motion.short)
 		end
 	end
 
@@ -3142,7 +3191,11 @@ __mods["core.Window"] = function()
 		end
 
 		self.theme = Theme.build(themeSpec)
-		Creator.applyTheme(self.theme, true)
+		local previousSurface = self.surface.BackgroundColor3
+		Creator.applyTheme(self.theme, false)
+		local nextSurface = self.surface.BackgroundColor3
+		self.surface.BackgroundColor3 = previousSurface
+		Motion.tween(self.surface, { BackgroundColor3 = nextSurface }, self.theme.motion.emphasized)
 		if self.selectedTab then
 			self.selectedTab:_applySelected()
 		end
@@ -5574,27 +5627,37 @@ __mods["elements.Dropdown"] = function()
 			local theme = window.theme
 			local overlay = window.overlayGui
 
-			local menu = Creator.new("Frame", {
+			local menu = Creator.new("CanvasGroup", {
 				Name = "DropdownMenu",
 				AnchorPoint = Vector2.new(1, 0),
 				Size = UDim2.fromOffset(self.trigger.AbsoluteSize.X, 0),
 				BackgroundColor3 = theme.colors.surfaceContainerHigh,
-				BorderSizePixel = 0,
 				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				GroupTransparency = 1,
 				Parent = overlay,
 			}, { BackgroundColor3 = "surfaceContainerHigh" })
 			self.menu = menu
 
+			local menuSurface = Creator.new("Frame", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = theme.colors.surfaceContainerHigh,
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				Parent = menu,
+			}, { BackgroundColor3 = "surfaceContainerHigh" })
+			self.menuSurface = menuSurface
+
 			Creator.new("UICorner", {
 				CornerRadius = theme.shape.menu,
-				Parent = menu,
+				Parent = menuSurface,
 			})
 			Creator.new("UIStroke", {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				Color = theme.colors.outlineVariant,
 				Transparency = 0,
 				Thickness = 1,
-				Parent = menu,
+				Parent = menuSurface,
 			}, { Color = "outlineVariant" })
 
 			local list = Creator.new("ScrollingFrame", {
@@ -5606,7 +5669,7 @@ __mods["elements.Dropdown"] = function()
 				CanvasSize = UDim2.new(0, 0, 0, 0),
 				ScrollingDirection = Enum.ScrollingDirection.Y,
 				ElasticBehavior = Enum.ElasticBehavior.Never,
-				Parent = menu,
+				Parent = menuSurface,
 			})
 			self.menuList = list
 
@@ -5647,7 +5710,7 @@ __mods["elements.Dropdown"] = function()
 			menu.Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y + (flip and 6 or -6))
 
 			Motion.tween(menu, {
-				BackgroundTransparency = 0,
+				GroupTransparency = 0,
 				Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y),
 			}, theme.motion.emphasizedDecelerate)
 
@@ -5784,7 +5847,7 @@ __mods["elements.Dropdown"] = function()
 				return
 			end
 			local theme = self.window.theme
-			Motion.tween(self.menu, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+			Motion.tween(self.menu, { GroupTransparency = 1 }, theme.motion.emphasizedAccelerate)
 			Motion.tween(self.chevron, { Rotation = 0 }, theme.motion.standard)
 			local menu = self.menu
 			self.menu = nil
@@ -9075,13 +9138,21 @@ __mods["theme.Palette"] = function()
 	function Palette.toneColor(palettes, family, tone)
 		tone = clamp(math.round(tone), 0, 100)
 		local palette = palettes[family]
+		if not palette then
+			return Color3.new(0, 0, 0)
+		end
+		local cache = palette.cache
+		if not cache then
+			cache = {}
+			palette.cache = cache
+		end
 		local key = family .. ":" .. tone
-		local cached = PALETTE_CACHE[key]
+		local cached = cache[key]
 		if cached then
 			return cached
 		end
 		local color = Palette.oklabToColor(tone / 100, palette.a, palette.b)
-		PALETTE_CACHE[key] = color
+		cache[key] = color
 		return color
 	end
 

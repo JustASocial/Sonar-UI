@@ -193,6 +193,10 @@ function Tab:_createPage()
 		end
 		local content = layout.AbsoluteContentSize or Vector2.new(0, 0)
 		local height = content.Y + padding.PaddingTop.Offset + padding.PaddingBottom.Offset
+		local current = page.CanvasSize
+		if current.X.Offset == width and current.Y.Offset == math.ceil(height) then
+			return
+		end
 		page.CanvasSize = UDim2.new(0, width, 0, math.ceil(height))
 	end
 	self._updateCanvas = updateCanvas

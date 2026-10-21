@@ -14,7 +14,7 @@ local window = Sonar.createWindow({
 		default = "en",
 		languages = {
 			en = { TAB = "Basics" },
-			ru = { TAB = "Р С›РЎРѓР Р…Р С•Р Р†РЎвЂ№" },
+			ru = { TAB = "Test" },
 		},
 	},
 })
@@ -189,7 +189,25 @@ do
 end
 
 print("--- theme and layout ---")
-window:setTheme({ mode = "light" })
+do
+	local before = window.theme.colors.primary
+	local beforeSurface = window.theme.colors.surfaceContainer
+	window:setAccent(Color3.fromRGB(255, 0, 0))
+	local after = window.theme.colors.primary
+	assert(before ~= after, "the primary colour must change with the seed")
+	print("primary before: " .. tostring(before) .. " after: " .. tostring(after))
+	window:setAccent(Color3.fromRGB(0, 100, 200))
+	local afterTwo = window.theme.colors.primary
+	assert(afterTwo ~= after, "a second seed must produce a different primary")
+	print("second seed primary: " .. tostring(afterTwo))
+	window:setTheme({ mode = "light" })
+	assert(window.theme.colors.primary ~= afterTwo, "light mode must use a different tone")
+	print("light primary: " .. tostring(window.theme.colors.primary))
+	window:setTheme({ mode = "dark" })
+	print("surface container: " .. tostring(window.theme.colors.surfaceContainer))
+	assert(beforeSurface ~= nil)
+end
+window:setTheme("Material")
 print("theme mode:", window.theme.mode)
 window:setAccent(Color3.fromRGB(0, 100, 200))
 print("seed:", Sonar.Palette.toHex(window.theme.seed))

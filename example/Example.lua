@@ -80,13 +80,17 @@ local window = Sonar.createWindow({
 				TAB_LAYOUT = "Layout",
 				TAB_SPECIAL = "Sonar original",
 				TAB_THEME = "Theme",
+				LANG_EN = "English",
+				LANG_RU = "Russian",
 			},
 			ru = {
-				TAB_BASIC = "РћСЃРЅРѕРІС‹",
-				TAB_INPUTS = "РџРѕР»СЏ РІРІРѕРґР°",
-				TAB_LAYOUT = "Р Р°СЃРєР»Р°РґРєР°",
-				TAB_SPECIAL = "Р¤РёСЂРјРµРЅРЅС‹Рµ СЌР»РµРјРµРЅС‚С‹",
-				TAB_THEME = "РўРµРјР°",
+				TAB_BASIC = "Основы",
+				TAB_INPUTS = "Поля ввода",
+				TAB_LAYOUT = "Раскладка",
+				TAB_SPECIAL = "Своё",
+				TAB_THEME = "Тема",
+				LANG_EN = "Английский",
+				LANG_RU = "Русский",
 			},
 		},
 	},
@@ -259,7 +263,7 @@ inputSection:createColorPicker({
 	Flag = "accentColor",
 })
 
-local sliderSection = inputs:createSection({ Title = "Ranges", Icon = "sliders-horizontal" })
+local sliderSection = inputs:createSection({ Title = "Ranges", Icon = "sliders" })
 
 sliderSection:createSlider({
 	Title = "Volume",
@@ -402,14 +406,14 @@ end
 
 themeSection:createDivider({ Text = "Language" })
 themeSection:createButton({
-	Title = "English",
+	Title = "loc:LANG_EN",
 	Variant = "outlined",
 	Callback = function()
 		window:setLanguage("en")
 	end,
 })
 themeSection:createButton({
-	Title = "Р СѓСЃСЃРєРёР№",
+	Title = "loc:LANG_RU",
 	Variant = "outlined",
 	Callback = function()
 		window:setLanguage("ru")

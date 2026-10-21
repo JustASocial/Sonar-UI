@@ -207,7 +207,7 @@ function Element.reveal(handle, delay)
 	local targets = {}
 	local originals = {}
 
-	for _, child in ipairs(main:GetDescendants()) do
+	for _, child in ipairs(main:GetChildren()) do
 		if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ImageLabel") then
 			table.insert(targets, child)
 			if child:IsA("ImageLabel") then

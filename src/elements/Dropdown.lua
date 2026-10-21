@@ -175,27 +175,37 @@ function Dropdown.new(ctx)
 		local theme = window.theme
 		local overlay = window.overlayGui
 
-		local menu = Creator.new("Frame", {
+		local menu = Creator.new("CanvasGroup", {
 			Name = "DropdownMenu",
 			AnchorPoint = Vector2.new(1, 0),
 			Size = UDim2.fromOffset(self.trigger.AbsoluteSize.X, 0),
 			BackgroundColor3 = theme.colors.surfaceContainerHigh,
-			BorderSizePixel = 0,
 			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			GroupTransparency = 1,
 			Parent = overlay,
 		}, { BackgroundColor3 = "surfaceContainerHigh" })
 		self.menu = menu
 
+		local menuSurface = Creator.new("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = theme.colors.surfaceContainerHigh,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			Parent = menu,
+		}, { BackgroundColor3 = "surfaceContainerHigh" })
+		self.menuSurface = menuSurface
+
 		Creator.new("UICorner", {
 			CornerRadius = theme.shape.menu,
-			Parent = menu,
+			Parent = menuSurface,
 		})
 		Creator.new("UIStroke", {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = theme.colors.outlineVariant,
 			Transparency = 0,
 			Thickness = 1,
-			Parent = menu,
+			Parent = menuSurface,
 		}, { Color = "outlineVariant" })
 
 		local list = Creator.new("ScrollingFrame", {
@@ -207,7 +217,7 @@ function Dropdown.new(ctx)
 			CanvasSize = UDim2.new(0, 0, 0, 0),
 			ScrollingDirection = Enum.ScrollingDirection.Y,
 			ElasticBehavior = Enum.ElasticBehavior.Never,
-			Parent = menu,
+			Parent = menuSurface,
 		})
 		self.menuList = list
 
@@ -248,7 +258,7 @@ function Dropdown.new(ctx)
 		menu.Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y + (flip and 6 or -6))
 
 		Motion.tween(menu, {
-			BackgroundTransparency = 0,
+			GroupTransparency = 0,
 			Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y),
 		}, theme.motion.emphasizedDecelerate)
 
@@ -385,7 +395,7 @@ function Dropdown.new(ctx)
 			return
 		end
 		local theme = self.window.theme
-		Motion.tween(self.menu, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+		Motion.tween(self.menu, { GroupTransparency = 1 }, theme.motion.emphasizedAccelerate)
 		Motion.tween(self.chevron, { Rotation = 0 }, theme.motion.standard)
 		local menu = self.menu
 		self.menu = nil

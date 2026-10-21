@@ -78,10 +78,26 @@ function Container.flush(self)
 	end
 	self.built = true
 	local children = self.children
-	for index, handle in ipairs(children) do
-		self:buildChild(handle)
+	local index = 0
+
+	local function step()
+		local budget = 6
+		local batch = {}
+		for _ = 1, budget do
+			if index >= #children then
+				break
+			end
+			index = index + 1
+			self:buildChild(children[index])
+			table.insert(batch, children[index])
+		end
+		self:_reveal(batch)
+		if index < #children then
+			task.defer(step)
+		end
 	end
-	self:_reveal(children)
+
+	step()
 end
 
 function Container:_reveal(children)

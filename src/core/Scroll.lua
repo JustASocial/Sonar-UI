@@ -1,5 +1,13 @@
 local Scroll = {}
 
+local function applyCanvas(scroller, width, height)
+	local current = scroller.CanvasSize
+	if current.X.Offset == width and current.Y.Offset == height then
+		return
+	end
+	scroller.CanvasSize = UDim2.new(0, width, 0, height)
+end
+
 function Scroll.bindContent(scroller, content, mode, padding)
 	padding = padding or 0
 
@@ -10,13 +18,13 @@ function Scroll.bindContent(scroller, content, mode, padding)
 			if width <= 0 then
 				return
 			end
-			scroller.CanvasSize = UDim2.new(0, width, 0, size.Y)
+			applyCanvas(scroller, width, size.Y)
 		else
 			local height = math.ceil(size.Y + padding)
 			if height <= 0 then
 				return
 			end
-			scroller.CanvasSize = UDim2.new(0, size.X, 0, height)
+			applyCanvas(scroller, size.X, height)
 		end
 	end
 
@@ -35,13 +43,13 @@ function Scroll.bindLayout(scroller, layout, mode, padding)
 			if width <= 0 then
 				return
 			end
-			scroller.CanvasSize = UDim2.new(0, width, 0, scroller.AbsoluteSize.Y)
+			applyCanvas(scroller, width, scroller.AbsoluteSize.Y)
 		else
 			local height = math.ceil(size.Y + padding)
 			if height <= 0 then
 				return
 			end
-			scroller.CanvasSize = UDim2.new(0, scroller.AbsoluteSize.X, 0, height)
+			applyCanvas(scroller, scroller.AbsoluteSize.X, height)
 		end
 	end
 

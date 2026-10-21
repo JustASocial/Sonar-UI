@@ -127,13 +127,21 @@ end
 function Palette.toneColor(palettes, family, tone)
 	tone = clamp(math.round(tone), 0, 100)
 	local palette = palettes[family]
+	if not palette then
+		return Color3.new(0, 0, 0)
+	end
+	local cache = palette.cache
+	if not cache then
+		cache = {}
+		palette.cache = cache
+	end
 	local key = family .. ":" .. tone
-	local cached = PALETTE_CACHE[key]
+	local cached = cache[key]
 	if cached then
 		return cached
 	end
 	local color = Palette.oklabToColor(tone / 100, palette.a, palette.b)
-	PALETTE_CACHE[key] = color
+	cache[key] = color
 	return color
 end
 

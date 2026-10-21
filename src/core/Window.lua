@@ -404,12 +404,20 @@ function Window:_buildNavigation()
 			if width <= 0 then
 				return
 			end
-			list.CanvasSize = UDim2.new(0, width, 0, math.ceil(content.Y + navPadding))
+			local target = math.ceil(content.Y + navPadding)
+			if list.CanvasSize.Y.Offset == target then
+				return
+			end
+			list.CanvasSize = UDim2.new(0, width, 0, target)
 		else
 			if height <= 0 then
 				return
 			end
-			list.CanvasSize = UDim2.new(0, math.ceil(content.X), 0, height)
+			local target = math.ceil(content.X)
+			if list.CanvasSize.X.Offset == target then
+				return
+			end
+			list.CanvasSize = UDim2.new(0, target, 0, height)
 		end
 	end
 	self:_connect(navLayout:GetPropertyChangedSignal("AbsoluteContentSize"), updateNavCanvas)
@@ -462,20 +470,36 @@ end
 
 function Window:_buildPages()
 	local sidebar = self.layout == "sidebar"
+	local inset = 8
 	local pages = Creator.new("Frame", {
 		Name = "Pages",
-		BackgroundTransparency = 1,
+		BackgroundColor3 = self.theme.colors.surfaceContainer,
+		BackgroundTransparency = 0,
+		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		Parent = self.surface,
-	})
+	}, { BackgroundColor3 = "surfaceContainer" })
 	self.pages = pages
 
+	Creator.new("UICorner", {
+		CornerRadius = self.theme.shape.card,
+		Parent = pages,
+	})
+
+	Creator.new("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = self.theme.colors.outlineVariant,
+		Transparency = 0.6,
+		Thickness = 1,
+		Parent = pages,
+	}, { Color = "outlineVariant" })
+
 	if sidebar then
-		pages.Size = UDim2.new(1, -RAIL_WIDTH, 1, -TOPBAR_HEIGHT)
-		pages.Position = UDim2.new(0, RAIL_WIDTH, 0, TOPBAR_HEIGHT)
+		pages.Size = UDim2.new(1, -(RAIL_WIDTH + inset * 2), 1, -(TOPBAR_HEIGHT + inset * 2))
+		pages.Position = UDim2.new(0, RAIL_WIDTH + inset, 0, TOPBAR_HEIGHT + inset)
 	else
-		pages.Size = UDim2.new(1, 0, 1, -(TOPBAR_HEIGHT + STRIP_HEIGHT))
-		pages.Position = UDim2.new(0, 0, 0, TOPBAR_HEIGHT + STRIP_HEIGHT)
+		pages.Size = UDim2.new(1, -(inset * 2), 1, -(TOPBAR_HEIGHT + STRIP_HEIGHT + inset * 2))
+		pages.Position = UDim2.new(0, inset, 0, TOPBAR_HEIGHT + STRIP_HEIGHT + inset)
 	end
 
 	self.pageLayout = nil
@@ -517,22 +541,10 @@ function Window:_swapPages(previous, tab, instant)
 	local vertical = self.layout == "sidebar"
 	local rest = UDim2.fromScale(0, 0)
 	local enter = vertical and UDim2.new(0, 1, 0, 0) or UDim2.new(1, 0, 0, 0)
-	local leave = vertical and UDim2.new(0, -1, 0, 0) or UDim2.new(-1, 0, 0, 0)
 
 	if previous and previous ~= tab and previous.page then
-		if instant then
-			previous.page.Position = leave
-			previous.page.Visible = false
-		else
-			previous.page.Visible = true
-			Motion.tween(previous.page, { Position = leave }, theme.motion.standard)
-			task.delay(theme.motion.standard.time, function()
-				if previous.page and previous.page.Parent and self.selectedTab ~= previous then
-					previous.page.Visible = false
-					previous.page.Position = rest
-				end
-			end)
-		end
+		previous.page.Visible = false
+		previous.page.Position = rest
 	end
 
 	if not tab.page then
@@ -544,7 +556,7 @@ function Window:_swapPages(previous, tab, instant)
 		tab.page.Position = rest
 	else
 		tab.page.Position = enter
-		Motion.tween(tab.page, { Position = rest }, theme.motion.standard)
+		Motion.tween(tab.page, { Position = rest }, theme.motion.short)
 	end
 end
 
@@ -606,7 +618,11 @@ function Window:setTheme(spec)
 	end
 
 	self.theme = Theme.build(themeSpec)
-	Creator.applyTheme(self.theme, true)
+	local previousSurface = self.surface.BackgroundColor3
+	Creator.applyTheme(self.theme, false)
+	local nextSurface = self.surface.BackgroundColor3
+	self.surface.BackgroundColor3 = previousSurface
+	Motion.tween(self.surface, { BackgroundColor3 = nextSurface }, self.theme.motion.emphasized)
 	if self.selectedTab then
 		self.selectedTab:_applySelected()
 	end

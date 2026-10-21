@@ -67,7 +67,7 @@ function Popup.create(window, props)
 		Parent = overlay,
 	}, { BackgroundColor3 = "scrim" })
 
-	local dialog = Creator.new("Frame", {
+	local dialog = Creator.new("CanvasGroup", {
 		Name = "Dialog",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -75,19 +75,28 @@ function Popup.create(window, props)
 		BackgroundColor3 = theme.colors.surfaceContainerHigh,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
+		GroupTransparency = 1,
 		Parent = scrim,
+	}, { BackgroundColor3 = "surfaceContainerHigh" })
+
+	local dialogSurface = Creator.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = theme.colors.surfaceContainerHigh,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Parent = dialog,
 	}, { BackgroundColor3 = "surfaceContainerHigh" })
 
 	Creator.new("UICorner", {
 		CornerRadius = theme.shape.dialog,
-		Parent = dialog,
+		Parent = dialogSurface,
 	})
 
 	local stack = Creator.new("UIListLayout", {
 		FillDirection = Enum.FillDirection.Vertical,
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Padding = UDim.new(0, 14),
-		Parent = dialog,
+		Parent = dialogSurface,
 	})
 
 	Creator.new("UIPadding", {
@@ -95,7 +104,7 @@ function Popup.create(window, props)
 		PaddingBottom = UDim.new(0, 24),
 		PaddingLeft = UDim.new(0, 24),
 		PaddingRight = UDim.new(0, 24),
-		Parent = dialog,
+		Parent = dialogSurface,
 	})
 
 	local icon = nil
@@ -107,7 +116,7 @@ function Popup.create(window, props)
 			ImageColor3 = theme.colors.onSurfaceVariant,
 			ScaleType = Enum.ScaleType.Fit,
 			LayoutOrder = 1,
-			Parent = dialog,
+			Parent = dialogSurface,
 		}, { ImageColor3 = "onSurfaceVariant" })
 	end
 
@@ -123,7 +132,7 @@ function Popup.create(window, props)
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextWrapped = true,
 		LayoutOrder = 2,
-		Parent = dialog,
+		Parent = dialogSurface,
 	}, { TextColor3 = "onSurface" })
 
 	local content = nil
@@ -140,7 +149,7 @@ function Popup.create(window, props)
 			TextYAlignment = Enum.TextYAlignment.Top,
 			TextWrapped = true,
 			LayoutOrder = 3,
-			Parent = dialog,
+			Parent = dialogSurface,
 		}, { TextColor3 = "onSurfaceVariant" })
 	end
 
@@ -148,7 +157,7 @@ function Popup.create(window, props)
 		Size = UDim2.new(1, 0, 0, 40),
 		BackgroundTransparency = 1,
 		LayoutOrder = 4,
-		Parent = dialog,
+		Parent = dialogSurface,
 	})
 
 	Creator.new("UIListLayout", {
@@ -166,7 +175,7 @@ function Popup.create(window, props)
 		end
 		closed = true
 		Motion.tween(scrim, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
-		Motion.tween(dialog, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+		Motion.tween(dialog, { GroupTransparency = 1 }, theme.motion.emphasizedAccelerate)
 		task.delay(theme.motion.emphasizedAccelerate.time, function()
 			scrim:Destroy()
 		end)
@@ -192,7 +201,7 @@ function Popup.create(window, props)
 	end)
 
 	Motion.tween(scrim, { BackgroundTransparency = 0.6 }, theme.motion.emphasizedDecelerate)
-	Motion.tween(dialog, { BackgroundTransparency = 0 }, theme.motion.emphasizedDecelerate)
+	Motion.tween(dialog, { GroupTransparency = 0 }, theme.motion.emphasizedDecelerate)
 
 	return {
 		Close = close,
