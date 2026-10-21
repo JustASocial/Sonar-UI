@@ -75,8 +75,21 @@ function Container.flush(self)
 		return
 	end
 	self.built = true
-	for _, handle in ipairs(self.children) do
+	local children = self.children
+	for index, handle in ipairs(children) do
 		self:buildChild(handle)
+	end
+	self:_reveal(children)
+end
+
+function Container:_reveal(children)
+	local Element = require(script.Parent.Element)
+	local index = 0
+	for _, handle in ipairs(children) do
+		index = index + 1
+		if handle.main then
+			Element.reveal(handle, (index - 1) * 0.035)
+		end
 	end
 end
 

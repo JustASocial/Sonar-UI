@@ -4,6 +4,55 @@ local Icons = require(script.Parent.Parent.icons.Init)
 
 local Popup = {}
 
+local function makeButton(parent, theme, spec, order)
+	local variant = spec.Variant or "text"
+	local button = Creator.new("TextButton", {
+		Size = UDim2.new(0, 0, 0, 40),
+		AutomaticSize = Enum.AutomaticSize.X,
+		BackgroundColor3 = variant == "filled" and theme.colors.primary or theme.colors.surfaceContainerHighest,
+		BackgroundTransparency = variant == "filled" and 0 or 0,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = spec.Title or "",
+		Font = theme.fonts.bold,
+		TextColor3 = variant == "filled" and theme.colors.onPrimary or theme.colors.onSurface,
+		TextSize = theme.type.labelLarge.size,
+		LayoutOrder = order,
+		Parent = parent,
+	}, {
+		BackgroundColor3 = variant == "filled" and "primary" or "surfaceContainerHighest",
+		TextColor3 = variant == "filled" and "onPrimary" or "onSurface",
+	})
+
+	Creator.new("UICorner", {
+		CornerRadius = theme.shape.button,
+		Parent = button,
+	})
+
+	Creator.new("UIPadding", {
+		PaddingLeft = UDim.new(0, 22),
+		PaddingRight = UDim.new(0, 22),
+		Parent = button,
+	})
+
+	local hover = Creator.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = theme.colors.onSurface,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Parent = button,
+	}, { BackgroundColor3 = "onSurface" })
+
+	button.MouseEnter:Connect(function()
+		Motion.tween(hover, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
+	end)
+	button.MouseLeave:Connect(function()
+		Motion.tween(hover, { BackgroundTransparency = 1 }, theme.motion.short)
+	end)
+
+	return button
+end
+
 function Popup.create(window, props)
 	props = props or {}
 	local theme = window.theme
@@ -15,7 +64,6 @@ function Popup.create(window, props)
 		BackgroundColor3 = theme.colors.scrim,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		ZIndex = 100,
 		Parent = overlay,
 	}, { BackgroundColor3 = "scrim" })
 
@@ -23,10 +71,10 @@ function Popup.create(window, props)
 		Name = "Dialog",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = props.Size or UDim2.fromOffset(360, 220),
+		Size = props.Size or UDim2.fromOffset(380, 240),
 		BackgroundColor3 = theme.colors.surfaceContainerHigh,
+		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		ZIndex = 101,
 		Parent = scrim,
 	}, { BackgroundColor3 = "surfaceContainerHigh" })
 
@@ -35,10 +83,10 @@ function Popup.create(window, props)
 		Parent = dialog,
 	})
 
-	local layout = Creator.new("UIListLayout", {
-		Padding = UDim.new(0, 12),
+	local stack = Creator.new("UIListLayout", {
+		FillDirection = Enum.FillDirection.Vertical,
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		HorizontalAlignment = Enum.HorizontalAlignment.Left,
+		Padding = UDim.new(0, 14),
 		Parent = dialog,
 	})
 
@@ -53,38 +101,35 @@ function Popup.create(window, props)
 	local icon = nil
 	if props.Icon then
 		icon = Creator.new("ImageLabel", {
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 24, 0, 24),
 			Size = UDim2.fromOffset(24, 24),
 			BackgroundTransparency = 1,
 			Image = Icons.image(props.Icon) or "",
 			ImageColor3 = theme.colors.onSurfaceVariant,
 			ScaleType = Enum.ScaleType.Fit,
-			ZIndex = 102,
+			LayoutOrder = 1,
 			Parent = dialog,
 		}, { ImageColor3 = "onSurfaceVariant" })
-		icon.LayoutOrder = 1
 	end
 
 	local title = Creator.new("TextLabel", {
-		Position = UDim2.new(0, 24, 0, 24),
-		Size = UDim2.new(1, -48, 0, 28),
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Font = theme.fonts.bold,
 		Text = props.Title or "",
 		TextColor3 = theme.colors.onSurface,
 		TextSize = theme.type.headlineSmall.size,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
 		TextWrapped = true,
-		ZIndex = 102,
+		LayoutOrder = 2,
 		Parent = dialog,
 	}, { TextColor3 = "onSurface" })
-	title.LayoutOrder = 2
 
 	local content = nil
 	if props.Content then
 		content = Creator.new("TextLabel", {
-			Size = UDim2.new(1, -48, 0, 0),
+			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
 			Font = theme.fonts.regular,
@@ -94,19 +139,17 @@ function Popup.create(window, props)
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextYAlignment = Enum.TextYAlignment.Top,
 			TextWrapped = true,
-			ZIndex = 102,
+			LayoutOrder = 3,
 			Parent = dialog,
 		}, { TextColor3 = "onSurfaceVariant" })
-		content.LayoutOrder = 3
 	end
 
 	local actions = Creator.new("Frame", {
-		Size = UDim2.new(1, -48, 0, 40),
+		Size = UDim2.new(1, 0, 0, 40),
 		BackgroundTransparency = 1,
-		ZIndex = 102,
+		LayoutOrder = 4,
 		Parent = dialog,
 	})
-	actions.LayoutOrder = 4
 
 	Creator.new("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
@@ -131,37 +174,7 @@ function Popup.create(window, props)
 
 	local buttonList = props.Buttons or { { Title = "OK" } }
 	for index, spec in ipairs(buttonList) do
-		local variant = spec.Variant or "text"
-		local button = Creator.new("TextButton", {
-			Size = UDim2.fromOffset(0, 40),
-			AutomaticSize = Enum.AutomaticSize.X,
-			BackgroundTransparency = 1,
-			AutoButtonColor = false,
-			Text = spec.Title or "OK",
-			Font = theme.fonts.bold,
-			TextColor3 = variant == "primary" and theme.colors.primary or theme.colors.onSurfaceVariant,
-			TextSize = theme.type.labelLarge.size,
-			LayoutOrder = index,
-			ZIndex = 102,
-			Parent = actions,
-		}, { TextColor3 = variant == "primary" and "primary" or "onSurfaceVariant" })
-
-		Creator.new("UIPadding", {
-			PaddingLeft = UDim.new(0, 16),
-			PaddingRight = UDim.new(0, 16),
-			Parent = button,
-		})
-
-		if variant == "filled" then
-			Creator.new("UIStroke", {
-				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-				Color = theme.colors.outlineVariant,
-				Transparency = 0,
-				Thickness = 1,
-				Parent = button,
-			}, { Color = "outlineVariant" })
-		end
-
+		local button = makeButton(actions, theme, spec, index)
 		button.MouseButton1Click:Connect(function()
 			if spec.Callback then
 				task.spawn(spec.Callback)
@@ -178,7 +191,7 @@ function Popup.create(window, props)
 		end
 	end)
 
-	Motion.tween(scrim, { BackgroundTransparency = 0.55 }, theme.motion.emphasizedDecelerate)
+	Motion.tween(scrim, { BackgroundTransparency = 0.6 }, theme.motion.emphasizedDecelerate)
 	Motion.tween(dialog, { BackgroundTransparency = 0 }, theme.motion.emphasizedDecelerate)
 
 	return {

@@ -2,6 +2,7 @@ local Element = require(script.Parent.Parent.core.Element)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Variables = require(script.Parent.Parent.core.Variables)
+local Icons = require(script.Parent.Parent.icons.Init)
 
 local ColorPicker = {}
 
@@ -141,6 +142,21 @@ function ColorPicker.new(ctx)
 			Parent = swatch,
 		}, { Color = "outlineVariant" })
 
+		local hover = Creator.new("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = theme.colors.onSurface,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			Parent = swatch,
+		}, { BackgroundColor3 = "onSurface" })
+		self.state = hover
+
+		Element.connect(self, swatch.MouseEnter, function()
+			Motion.tween(hover, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
+		end)
+		Element.connect(self, swatch.MouseLeave, function()
+			Motion.tween(hover, { BackgroundTransparency = 1 }, theme.motion.short)
+		end)
 		Element.connect(self, swatch.MouseButton1Click, function()
 			if self.locked then
 				return
@@ -178,8 +194,9 @@ function ColorPicker.new(ctx)
 		local dialog = Creator.new("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(300, 344),
+			Size = UDim2.fromOffset(324, 400),
 			BackgroundColor3 = theme.colors.surfaceContainerHigh,
+			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Parent = scrim,
 		}, { BackgroundColor3 = "surfaceContainerHigh" })
@@ -190,11 +207,13 @@ function ColorPicker.new(ctx)
 			Parent = dialog,
 		})
 
-		local layout = Creator.new("UIListLayout", {
-			Padding = UDim.new(0, 12),
+		local stack = Creator.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Vertical,
 			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 12),
 			Parent = dialog,
 		})
+
 		Creator.new("UIPadding", {
 			PaddingTop = UDim.new(0, 20),
 			PaddingBottom = UDim.new(0, 20),
@@ -204,29 +223,68 @@ function ColorPicker.new(ctx)
 		})
 
 		local heading = Creator.new("TextLabel", {
-			Size = UDim2.new(1, 0, 0, 24),
+			Size = UDim2.new(1, 0, 0, 26),
 			BackgroundTransparency = 1,
 			Font = theme.fonts.bold,
-			Text = props.Title or "Color",
+			Text = props.Title or "Colour",
 			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.titleMedium.size,
+			TextSize = theme.type.titleLarge.size,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = dialog,
 		}, { TextColor3 = "onSurface" })
 		heading.LayoutOrder = 1
+
+		local previewRow = Creator.new("Frame", {
+			Size = UDim2.new(1, 0, 0, 56),
+			BackgroundTransparency = 1,
+			Parent = dialog,
+		})
+		previewRow.LayoutOrder = 2
+
+		local preview = Creator.new("Frame", {
+			Size = UDim2.fromOffset(56, 56),
+			BackgroundColor3 = self.value,
+			BorderSizePixel = 0,
+			Parent = previewRow,
+		}, { BackgroundColor3 = "surface" })
+		Creator.new("UICorner", {
+			CornerRadius = UDim.new(0, 12),
+			Parent = preview,
+		})
+		Creator.new("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = theme.colors.outlineVariant,
+			Transparency = 0,
+			Thickness = 1,
+			Parent = preview,
+		}, { Color = "outlineVariant" })
+		self.preview = preview
+
+		local previewText = Creator.new("TextLabel", {
+			Position = UDim2.new(0, 72, 0, 4),
+			Size = UDim2.new(1, -72, 0, 20),
+			BackgroundTransparency = 1,
+			Font = theme.fonts.mono,
+			Text = "",
+			TextColor3 = theme.colors.onSurface,
+			TextSize = theme.type.bodyMedium.size,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = previewRow,
+		}, { TextColor3 = "onSurface" })
+		self.previewText = previewText
 
 		local plane = Creator.new("Frame", {
 			Size = UDim2.new(1, 0, 0, 150),
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BorderSizePixel = 0,
 			Parent = dialog,
-		})
-		plane.LayoutOrder = 2
+		}, { BackgroundColor3 = "surface" })
+		plane.LayoutOrder = 3
 		self.plane = plane
 
-		Creator.new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = plane })
+		Creator.new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = plane })
 
-		local valueGradient = Creator.new("UIGradient", {
+		Creator.new("UIGradient", {
 			Rotation = 90,
 			Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(0, 0, 0)),
 			Parent = plane,
@@ -238,7 +296,7 @@ function ColorPicker.new(ctx)
 			BorderSizePixel = 0,
 			Parent = plane,
 		})
-		Creator.new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = sat })
+		Creator.new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = sat })
 		Creator.new("UIGradient", {
 			Rotation = 0,
 			Color = ColorSequence.new(Color3.new(1, 1, 1)),
@@ -252,7 +310,7 @@ function ColorPicker.new(ctx)
 
 		local cursor = Creator.new("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Size = UDim2.fromOffset(14, 14),
+			Size = UDim2.fromOffset(18, 18),
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BorderSizePixel = 0,
 			Parent = plane,
@@ -261,8 +319,8 @@ function ColorPicker.new(ctx)
 		Creator.new("UIStroke", {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = Color3.new(0, 0, 0),
-			Transparency = 0,
-			Thickness = 2,
+			Transparency = 0.15,
+			Thickness = 3,
 			Parent = cursor,
 		})
 		self.cursor = cursor
@@ -272,8 +330,8 @@ function ColorPicker.new(ctx)
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BorderSizePixel = 0,
 			Parent = dialog,
-		})
-		hueTrack.LayoutOrder = 3
+		}, { BackgroundColor3 = "surface" })
+		hueTrack.LayoutOrder = 4
 		Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = hueTrack })
 		Creator.new("UIGradient", {
 			Color = hueGradient(),
@@ -291,7 +349,7 @@ function ColorPicker.new(ctx)
 		Creator.new("UIStroke", {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = Color3.new(0, 0, 0),
-			Transparency = 0,
+			Transparency = 0.2,
 			Thickness = 2,
 			Parent = hueCursor,
 		})
@@ -305,8 +363,8 @@ function ColorPicker.new(ctx)
 				BackgroundColor3 = self.value,
 				BorderSizePixel = 0,
 				Parent = dialog,
-			})
-			alphaTrack.LayoutOrder = 4
+			}, { BackgroundColor3 = "surface" })
+			alphaTrack.LayoutOrder = 5
 			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = alphaTrack })
 			Creator.new("UIGradient", {
 				Rotation = 0,
@@ -328,14 +386,14 @@ function ColorPicker.new(ctx)
 			Creator.new("UIStroke", {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				Color = Color3.new(0, 0, 0),
-				Transparency = 0,
+				Transparency = 0.2,
 				Thickness = 2,
 				Parent = alphaCursor,
 			})
 		end
 
 		local hexBox = Creator.new("TextBox", {
-			Size = UDim2.new(1, 0, 0, 40),
+			Size = UDim2.new(1, 0, 0, 44),
 			BackgroundColor3 = theme.colors.surfaceContainerHighest,
 			BorderSizePixel = 0,
 			Text = "",
@@ -347,33 +405,40 @@ function ColorPicker.new(ctx)
 			ClearTextOnFocus = false,
 			Parent = dialog,
 		}, { BackgroundColor3 = "surfaceContainerHighest" })
-		hexBox.LayoutOrder = 5
+		hexBox.LayoutOrder = 6
 		Creator.new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = hexBox })
 		Creator.new("UIPadding", {
 			PaddingLeft = UDim.new(0, 12),
 			PaddingRight = UDim.new(0, 12),
 			Parent = hexBox,
 		})
+		self.hexBox = hexBox
 
 		local actions = Creator.new("Frame", {
 			Size = UDim2.new(1, 0, 0, 40),
 			BackgroundTransparency = 1,
 			Parent = dialog,
 		})
-		actions.LayoutOrder = 6
+		actions.LayoutOrder = 7
 		Creator.new("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
 			HorizontalAlignment = Enum.HorizontalAlignment.Right,
 			Padding = UDim.new(0, 8),
+			SortOrder = Enum.SortOrder.LayoutOrder,
 			Parent = actions,
 		})
 
 		local state = { h = 0, s = 0, v = 1, a = self.alpha }
+		local dragging = nil
+		local moveConnection = nil
+		local endConnection = nil
 
 		local function applyColor()
 			self.value = hsvToRgb(state.h, state.s, state.v)
 			self.alpha = state.a
 			self:_render()
+			preview.BackgroundColor3 = self.value
+			previewText.Text = string.format("%s  %d%%", self.value:ToHex(), math.floor(state.a * 100))
 			if alphaTrack then
 				alphaTrack.BackgroundColor3 = self.value
 			end
@@ -409,50 +474,61 @@ function ColorPicker.new(ctx)
 			applyColor()
 		end
 
-		local dragging = nil
-		local function onChanged(input)
-			if not dragging then
-				return
+		local function stopDrag()
+			dragging = nil
+			if moveConnection then
+				moveConnection:Disconnect()
+				moveConnection = nil
 			end
-			if dragging == "plane" then
-				updateFromPlane(input.Position)
-			elseif dragging == "hue" then
-				updateFromHue(input.Position)
-			elseif dragging == "alpha" then
-				updateFromAlpha(input.Position)
+			if endConnection then
+				endConnection:Disconnect()
+				endConnection = nil
 			end
 		end
 
-		local function beginDrag(target, kind)
+		local function beginDrag(kind)
 			dragging = kind
-			local function move(input)
-				onChanged(input)
+			if moveConnection then
+				moveConnection:Disconnect()
 			end
-			local function endDrag(input)
-				dragging = nil
-				moveConn:Disconnect()
-				endConn:Disconnect()
+			if endConnection then
+				endConnection:Disconnect()
 			end
-			local moveConn = Variables.services.UserInputService.InputChanged:Connect(move)
-			local endConn = Variables.services.UserInputService.InputEnded:Connect(endDrag)
+			moveConnection = Variables.services.UserInputService.InputChanged:Connect(function(changed)
+				if dragging ~= kind then
+					return
+				end
+				if changed.UserInputType == Enum.UserInputType.MouseMovement or changed.UserInputType == Enum.UserInputType.Touch then
+					if kind == "plane" then
+						updateFromPlane(changed.Position)
+					elseif kind == "hue" then
+						updateFromHue(changed.Position)
+					elseif kind == "alpha" then
+						updateFromAlpha(changed.Position)
+					end
+				end
+			end)
+			endConnection = Variables.services.UserInputService.InputEnded:Connect(function()
+				stopDrag()
+			end)
 		end
 
 		plane.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				beginDrag(plane, "plane")
+				beginDrag("plane")
 				updateFromPlane(input.Position)
 			end
 		end)
 		hueTrack.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				beginDrag(hueTrack, "hue")
+				beginDrag("hue")
 				updateFromHue(input.Position)
 			end
 		end)
 		if alphaTrack then
 			alphaTrack.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					beginDrag(alphaTrack, "alpha")
+					beginDrag("alpha")
 					updateFromAlpha(input.Position)
 				end
 			end)
@@ -475,20 +551,29 @@ function ColorPicker.new(ctx)
 
 		local function makeButton(text, order, primary)
 			local button = Creator.new("TextButton", {
-				Size = UDim2.fromOffset(0, 40),
+				Size = UDim2.new(0, 0, 0, 40),
 				AutomaticSize = Enum.AutomaticSize.X,
-				BackgroundTransparency = 1,
+				BackgroundColor3 = primary and theme.colors.primary or theme.colors.surfaceContainerHighest,
+				BackgroundTransparency = primary and 0 or 0,
+				BorderSizePixel = 0,
 				AutoButtonColor = false,
 				Text = text,
 				Font = theme.fonts.bold,
-				TextColor3 = primary and theme.colors.primary or theme.colors.onSurfaceVariant,
+				TextColor3 = primary and theme.colors.onPrimary or theme.colors.onSurface,
 				TextSize = theme.type.labelLarge.size,
 				LayoutOrder = order,
 				Parent = actions,
-			}, { TextColor3 = primary and "primary" or "onSurfaceVariant" })
+			}, {
+				BackgroundColor3 = primary and "primary" or "surfaceContainerHighest",
+				TextColor3 = primary and "onPrimary" or "onSurface",
+			})
+			Creator.new("UICorner", {
+				CornerRadius = theme.shape.button,
+				Parent = button,
+			})
 			Creator.new("UIPadding", {
-				PaddingLeft = UDim.new(0, 16),
-				PaddingRight = UDim.new(0, 16),
+				PaddingLeft = UDim.new(0, 20),
+				PaddingRight = UDim.new(0, 20),
 				Parent = button,
 			})
 			return button
@@ -498,9 +583,11 @@ function ColorPicker.new(ctx)
 		local apply = makeButton("Apply", 2, true)
 
 		local function close()
+			stopDrag()
 			self.dialog = nil
-			Motion.tween(scrim, { BackgroundTransparency = 1 }, theme.motion.short4)
-			task.delay(theme.motion.short4.time, function()
+			Motion.tween(scrim, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+			Motion.tween(dialog, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+			task.delay(theme.motion.emphasizedAccelerate.time, function()
 				scrim:Destroy()
 			end)
 		end
@@ -521,23 +608,19 @@ function ColorPicker.new(ctx)
 		sat.BackgroundColor3 = hsvToRgb(state.h, 1, 1)
 		applyColor()
 
-		local function placeCursor()
+		local function placeCursors()
 			cursor.Position = UDim2.new(state.s, 0, 1 - state.v, 0)
 			hueCursor.Position = UDim2.new(state.h, 0, 0.5, 0)
 			if alphaCursor then
 				alphaCursor.Position = UDim2.new(state.a, 0, 0.5, 0)
 			end
 		end
-		placeCursor()
-		local connections = {}
-		connections[#connections + 1] = plane:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-			placeCursor()
-		end)
-		connections[#connections + 1] = hueTrack:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-			placeCursor()
-		end)
+		placeCursors()
+		Element.connect(self, plane:GetPropertyChangedSignal("AbsoluteSize"), placeCursors)
+		Element.connect(self, hueTrack:GetPropertyChangedSignal("AbsoluteSize"), placeCursors)
 
-		Motion.tween(scrim, { BackgroundTransparency = 0.55 }, theme.motion.emphasizedDecelerate)
+		Motion.tween(scrim, { BackgroundTransparency = 0.6 }, theme.motion.emphasizedDecelerate)
+		Motion.tween(dialog, { BackgroundTransparency = 0 }, theme.motion.emphasizedDecelerate)
 	end
 
 	function handle:Set(color, alpha, skipCallback)

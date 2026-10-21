@@ -25,7 +25,7 @@ function Input.new(ctx)
 		local main = Creator.new("Frame", {
 			Name = typeName,
 			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, multiline and 128 or (props.Description and 76 or 60)),
+			Size = UDim2.new(1, 0, 0, multiline and 132 or (props.Description and 78 or 60)),
 			BackgroundTransparency = 1,
 			Parent = parentFrame,
 		})
@@ -34,7 +34,7 @@ function Input.new(ctx)
 		local fieldHeight = multiline and 104 or 56
 		local field = Creator.new("Frame", {
 			Name = "Field",
-			Position = UDim2.new(0, 0, 0, multiline and 0 or 8),
+			Position = UDim2.new(0, 0, 0, 0),
 			Size = UDim2.new(1, 0, 0, fieldHeight),
 			BackgroundColor3 = theme.colors.surfaceContainerHighest,
 			BorderSizePixel = 0,
@@ -59,13 +59,13 @@ function Input.new(ctx)
 		self.indicator = indicator
 
 		local label = Creator.new("TextLabel", {
-			Position = UDim2.new(0, 16, 0, multiline and 8 or 20),
-			Size = UDim2.new(1, -32, 0, 18),
+			Position = UDim2.new(0, 16, 0, 8),
+			Size = UDim2.new(1, -32, 0, 16),
 			BackgroundTransparency = 1,
-			Font = theme.fonts.regular,
+			Font = theme.fonts.bold,
 			Text = props.Title or "",
 			TextColor3 = theme.colors.onSurfaceVariant,
-			TextSize = theme.type.bodyLarge.size,
+			TextSize = theme.type.labelMedium.size,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			Parent = field,
@@ -74,8 +74,8 @@ function Input.new(ctx)
 
 		local textbox = Creator.new("TextBox", {
 			Name = "TextBox",
-			Position = UDim2.new(0, 16, 0, multiline and 32 or 24),
-			Size = UDim2.new(1, -32, 1, multiline and -40 or -24),
+			Position = UDim2.new(0, 16, 0, multiline and 30 or 26),
+			Size = UDim2.new(1, -32, 1, multiline and -38 or -30),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Text = "",
@@ -96,8 +96,8 @@ function Input.new(ctx)
 
 		if props.Description then
 			local desc = Creator.new("TextLabel", {
-				Position = UDim2.new(0, 0, 1, -20),
-				Size = UDim2.new(1, 0, 0, 18),
+				Position = UDim2.new(0, 2, 0, fieldHeight + 6),
+				Size = UDim2.new(1, -4, 0, 18),
 				BackgroundTransparency = 1,
 				Font = theme.fonts.regular,
 				Text = props.Description,
@@ -115,21 +115,23 @@ function Input.new(ctx)
 				return
 			end
 			Motion.tween(label, {
-				Position = UDim2.new(0, 16, 0, floating and 6 or 20),
-				TextSize = floating and theme.type.bodySmall.size or theme.type.bodyLarge.size,
-			}, theme.motion.short)
+				Position = UDim2.new(0, 16, 0, floating and 8 or 20),
+				TextSize = floating and theme.type.labelMedium.size or theme.type.bodyLarge.size,
+			}, theme.motion.standard)
+			label.Position = UDim2.new(0, 16, 0, floating and 8 or 20)
+			label.TextSize = floating and theme.type.labelMedium.size or theme.type.bodyLarge.size
 		end
 
 		Element.connect(self, textbox.Focused, function()
 			setFloating(true)
-			Motion.tween(indicator, { BackgroundColor3 = theme.colors.primary, BackgroundTransparency = 0 }, theme.motion.short)
+			Motion.tween(indicator, { BackgroundColor3 = theme.colors.primary, BackgroundTransparency = 0 }, theme.motion.standard)
 		end)
 
 		Element.connect(self, textbox.FocusLost, function()
 			if textbox.Text == "" then
 				setFloating(false)
 			end
-			Motion.tween(indicator, { BackgroundColor3 = theme.colors.onSurfaceVariant, BackgroundTransparency = 0.6 }, theme.motion.short)
+			Motion.tween(indicator, { BackgroundColor3 = theme.colors.onSurfaceVariant, BackgroundTransparency = 0.6 }, theme.motion.standard)
 			self:_commit()
 		end)
 
@@ -173,8 +175,8 @@ function Input.new(ctx)
 		if self.textbox then
 			self.textbox.Text = value
 			if value ~= "" then
-				self.label.Position = UDim2.new(0, 16, 0, 6)
-				self.label.TextSize = self.window.theme.type.bodySmall.size
+				self.label.Position = UDim2.new(0, 16, 0, 8)
+				self.label.TextSize = self.window.theme.type.labelMedium.size
 			else
 				self.label.Position = UDim2.new(0, 16, 0, 20)
 				self.label.TextSize = self.window.theme.type.bodyLarge.size

@@ -61,16 +61,102 @@ function Window.new(props)
 	self:_buildTopbar()
 	self:_buildNavigation()
 	self:_buildPages()
+	self:_enableDrag()
 
 	self.config = self.configManager:create(props.ConfigName or "config", props.AutoSave ~= false)
 
+	if props.AutoSave ~= false then
+		task.defer(function()
+			if self.unloaded then
+				return
+			end
+			self.config:load()
+			self:_restoreSettings()
+		end)
+	end
+
 	return self
+end
+
+function Window:_storeSettings()
+	local seed = self.theme.seed
+	self.config.custom.theme = {
+		name = self.theme.name,
+		mode = self.theme.mode,
+		seed = { r = seed.R, g = seed.G, b = seed.B },
+	}
+	self.config.custom.language = self.locale.current
+	self.config.custom.layout = self.layout
+end
+
+function Window:_restoreSettings()
+	local custom = self.config.custom
+	local theme = custom.theme
+	if type(theme) == "table" then
+		local seed = theme.seed
+		self:setTheme({
+			name = theme.name or self.theme.name,
+			mode = theme.mode or self.theme.mode,
+			seed = type(seed) == "table" and Color3.new(seed.r, seed.g, seed.b) or self.theme.seed,
+		})
+	end
+	if type(custom.language) == "string" and custom.language ~= self.locale.current then
+		self:setLanguage(custom.language)
+	end
+	if type(custom.layout) == "string" and custom.layout ~= self.layout then
+		self:setLayout(custom.layout)
+	end
 end
 
 function Window:_connect(signal, callback)
 	local connection = signal:Connect(callback)
 	table.insert(self.connections, connection)
 	return connection
+end
+
+function Window:_enableDrag()
+	local dragging = false
+	local offset = Vector2.new(0, 0)
+
+	self.topbar.InputBegan:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		if self.minimised then
+			return
+		end
+		local actions = self.actions
+		if actions and actions.AbsoluteSize.X > 0 then
+			local rect = actions.AbsolutePosition
+			if input.Position.X >= rect.X and input.Position.X <= rect.X + actions.AbsoluteSize.X then
+				return
+			end
+		end
+		dragging = true
+		local root = self.root
+		offset = Vector2.new(
+			input.Position.X - root.AbsolutePosition.X,
+			input.Position.Y - root.AbsolutePosition.Y
+		)
+	end)
+
+	self:_connect(Variables.services.UserInputService.InputChanged, function(input)
+		if not dragging then
+			return
+		end
+		if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		local root = self.root
+		local size = root.AbsoluteSize
+		local x = input.Position.X - offset.X + size.X / 2
+		local y = input.Position.Y - offset.Y + size.Y / 2
+		root.Position = UDim2.fromOffset(x, y)
+	end)
+
+	self:_connect(Variables.services.UserInputService.InputEnded, function()
+		dragging = false
+	end)
 end
 
 function Window:_buildScreen()
@@ -222,11 +308,13 @@ function Window:_buildTopbar()
 		Parent = actions,
 	})
 
-	self:_createAction("minimize", "minus", function()
+	local minimiseButton, minimiseIcon = self:_createAction("minimize", "minus", function()
 		self:toggleMinimise()
 	end)
+	self.minimiseButton = minimiseButton
+	self.minimiseIcon = minimiseIcon
 	self:_createAction("close", "x", function()
-		self:hide()
+		self:close()
 	end)
 end
 
@@ -271,7 +359,7 @@ function Window:_createAction(name, iconName, callback)
 		Motion.tween(icon, { ImageColor3 = theme.colors.onSurfaceVariant }, theme.motion.short4)
 	end)
 	button.MouseButton1Click:Connect(callback)
-	return button
+	return button, icon
 end
 
 function Window:_buildNavigation()
@@ -486,6 +574,8 @@ function Window:setLayout(layout)
 	if current then
 		self:selectTab(current, true)
 	end
+	self:_storeSettings()
+	self:_persist(self)
 end
 
 function Window:navigate(name)
@@ -521,6 +611,8 @@ function Window:setTheme(spec)
 		self.selectedTab:_applySelected()
 	end
 	self:_refreshElementThemes()
+	self:_storeSettings()
+	self:_persist(self)
 end
 
 function Window:setAccent(color)
@@ -549,6 +641,8 @@ end
 
 function Window:setLanguage(language)
 	self.locale:setLanguage(language)
+	self:_storeSettings()
+	self:_persist(self)
 end
 
 function Window:show()
@@ -600,12 +694,49 @@ function Window:toggle()
 end
 
 function Window:toggleMinimise()
-	self.minimised = not self.minimised
-	local target = self.size
-	if self.minimised then
-		Motion.tween(self.root, { Size = UDim2.new(target.X.Scale, target.X.Offset, 0, TOPBAR_HEIGHT) }, self.theme.motion.short)
+	local theme = self.theme
+	if not self.minimised then
+		self.minimised = true
+		self._restoreSize = self.root.Size
+		self._restorePosition = self.root.Position
+
+		self.nav.Visible = false
+		self.pages.Visible = false
+		if self.topDivider then
+			self.topDivider.Visible = false
+		end
+		if self.navDivider then
+			self.navDivider.Visible = false
+		end
+		if self.subtitleLabel then
+			self.subtitleLabel.Visible = false
+		end
+		self.minimiseIcon.Image = Icons.image("chevron-up") or ""
+
+		local screen = self.screen.AbsoluteSize
+		local width = math.min(320, math.max(200, screen.X - 40))
+		Motion.tween(self.root, {
+			Size = UDim2.fromOffset(width, 52),
+			Position = UDim2.fromOffset(screen.X / 2, 44),
+		}, theme.motion.emphasizedDecelerate)
 	else
-		Motion.tween(self.root, { Size = target }, self.theme.motion.short)
+		self.minimised = false
+		self.nav.Visible = true
+		self.pages.Visible = true
+		if self.topDivider then
+			self.topDivider.Visible = true
+		end
+		if self.navDivider then
+			self.navDivider.Visible = true
+		end
+		if self.subtitleLabel then
+			self.subtitleLabel.Visible = true
+		end
+		self.minimiseIcon.Image = Icons.image("minus") or ""
+		Motion.tween(self.root, {
+			Size = self._restoreSize or self.size,
+			Position = self._restorePosition or UDim2.fromScale(0.5, 0.5),
+		}, theme.motion.emphasizedDecelerate)
 	end
 end
 
@@ -622,7 +753,7 @@ function Window:saveConfig()
 end
 
 function Window:_persist(element)
-	if not element.flag then
+	if element ~= self and not element.flag then
 		return
 	end
 	if self.props.AutoSave == false then
@@ -653,6 +784,23 @@ end
 
 function Window:deleteConfig(name)
 	return self.configManager:delete(name)
+end
+
+function Window:close()
+	if self.unloaded or self.closing then
+		return
+	end
+	self.closing = true
+	self.animating = true
+	local theme = self.theme
+	local target = self.root.Size
+	Motion.tween(self.surface, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+	Motion.tween(self.root, {
+		Size = UDim2.new(target.X.Scale * 0.94, target.X.Offset, target.Y.Scale * 0.94, target.Y.Offset),
+	}, theme.motion.emphasizedAccelerate)
+	task.delay(theme.motion.emphasizedAccelerate.time, function()
+		self:unload()
+	end)
 end
 
 function Window:unload()

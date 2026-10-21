@@ -9,7 +9,23 @@ local function keyName(key)
 	if key == nil then
 		return "None"
 	end
-	return key.Name
+	if type(key) == "string" then
+		return key
+	end
+	if typeof(key) == "EnumItem" then
+		return key.Name
+	end
+	return tostring(key)
+end
+
+local function isMouseButton(value)
+	if value == nil then
+		return false
+	end
+	if typeof(value) == "EnumItem" then
+		return value.EnumType == Enum.UserInputType
+	end
+	return false
 end
 
 function Keybind.new(ctx)
@@ -141,10 +157,10 @@ function Keybind.new(ctx)
 				self:Set(input.KeyCode, true)
 				self:_stopRecording()
 			elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-				self:Set(Enum.KeyCode.MouseButton1, true)
+				self:Set(Enum.UserInputType.MouseButton1, true)
 				self:_stopRecording()
 			elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-				self:Set(Enum.KeyCode.MouseButton2, true)
+				self:Set(Enum.UserInputType.MouseButton2, true)
 				self:_stopRecording()
 			end
 		end)

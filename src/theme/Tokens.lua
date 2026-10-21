@@ -23,14 +23,15 @@ Tokens.Elevation = {
 }
 
 Tokens.Motion = {
-	emphasized = { time = 0.5, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
-	emphasizedDecelerate = { time = 0.4, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
-	emphasizedAccelerate = { time = 0.2, style = Enum.EasingStyle.Quart, direction = Enum.EasingDirection.Out },
-	standard = { time = 0.3, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
-	standardDecelerate = { time = 0.25, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
-	standardAccelerate = { time = 0.2, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
-	short = { time = 0.12, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
-	short4 = { time = 0.08, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+	emphasized = { time = 0.55, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
+	emphasizedDecelerate = { time = 0.45, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
+	emphasizedAccelerate = { time = 0.25, style = Enum.EasingStyle.Quart, direction = Enum.EasingDirection.Out },
+	standard = { time = 0.35, style = Enum.EasingStyle.Quart, direction = Enum.EasingDirection.Out },
+	standardDecelerate = { time = 0.3, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+	standardAccelerate = { time = 0.22, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+	short = { time = 0.2, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+	short4 = { time = 0.11, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+	slow = { time = 0.8, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
 }
 
 Tokens.Type = {

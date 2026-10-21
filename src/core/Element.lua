@@ -198,10 +198,64 @@ function Element.setHover(handle, hovered)
 	Motion.tween(handle.stateLayer, { BackgroundTransparency = target }, theme.motion.short4)
 end
 
-function Element.setPressed(handle, pressed)
-	if not handle.stateLayer or handle.locked then
+function Element.reveal(handle, delay)
+	local main = handle.main
+	if not main or not main.Parent then
 		return
 	end
+	local theme = handle.window.theme
+	local targets = {}
+	local originals = {}
+
+	for _, child in ipairs(main:GetDescendants()) do
+		if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ImageLabel") then
+			table.insert(targets, child)
+			if child:IsA("ImageLabel") then
+				originals[child] = child.ImageTransparency
+			else
+				originals[child] = child.TextTransparency
+			end
+		end
+	end
+
+	local startPosition = main.Position
+	local originalTransparency = main.BackgroundTransparency
+	main.Position = UDim2.new(
+		startPosition.X.Scale,
+		startPosition.X.Offset,
+		startPosition.Y.Scale,
+		startPosition.Y.Offset + 12
+	)
+	main.BackgroundTransparency = 1
+	for _, target in ipairs(targets) do
+		if target:IsA("ImageLabel") then
+			target.ImageTransparency = 1
+		else
+			target.TextTransparency = 1
+		end
+	end
+
+	task.delay(delay or 0, function()
+		if not main.Parent then
+			return
+		end
+		Motion.tween(main, {
+			Position = startPosition,
+			BackgroundTransparency = originalTransparency,
+		}, theme.motion.emphasizedDecelerate)
+		for _, target in ipairs(targets) do
+			if target:IsA("ImageLabel") then
+				Motion.tween(target, { ImageTransparency = originals[target] }, theme.motion.emphasizedDecelerate)
+			else
+				Motion.tween(target, { TextTransparency = originals[target] }, theme.motion.emphasizedDecelerate)
+			end
+		end
+	end)
+end
+
+function Element.setPressed(handle, pressed)
+	if not handle.stateLayer or handle.locked then
+		return	end
 	local theme = handle.window.theme
 	local target = pressed and 1 - theme.state.pressed or 1
 	Motion.tween(handle.stateLayer, { BackgroundTransparency = target }, theme.motion.short4)

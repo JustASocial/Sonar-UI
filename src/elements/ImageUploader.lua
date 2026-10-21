@@ -198,45 +198,65 @@ function ImageUploader.new(ctx)
 
 		local function makeButton(text, iconName, order, callback)
 			local button = Creator.new("TextButton", {
-				Size = UDim2.fromOffset(0, 36),
+				Size = UDim2.new(0, 0, 0, 36),
 				AutomaticSize = Enum.AutomaticSize.X,
 				BackgroundColor3 = theme.colors.secondaryContainer,
 				BorderSizePixel = 0,
 				AutoButtonColor = false,
-				Text = text,
-				Font = theme.fonts.bold,
-				TextColor3 = theme.colors.onSecondaryContainer,
-				TextSize = theme.type.labelMedium.size,
+				Text = "",
 				LayoutOrder = order,
 				Parent = actions,
 			}, {
 				BackgroundColor3 = "secondaryContainer",
-				TextColor3 = "onSecondaryContainer",
 			})
+
 			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = button })
-			Creator.new("UIPadding", {
-				PaddingLeft = UDim.new(0, 16),
-				PaddingRight = UDim.new(0, 16),
+
+			local row = Creator.new("Frame", {
+				Size = UDim2.new(0, 0, 1, 0),
+				AutomaticSize = Enum.AutomaticSize.X,
+				BackgroundTransparency = 1,
 				Parent = button,
 			})
+
+			Creator.new("UIListLayout", {
+				FillDirection = Enum.FillDirection.Horizontal,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				Padding = UDim.new(0, 6),
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Parent = row,
+			})
+
 			if iconName then
-				local icon = Creator.new("ImageLabel", {
-					AnchorPoint = Vector2.new(0, 0.5),
-					Position = UDim2.new(0, 12, 0.5, 0),
+				Creator.new("ImageLabel", {
 					Size = UDim2.fromOffset(16, 16),
 					BackgroundTransparency = 1,
 					Image = Icons.image(iconName) or "",
 					ImageColor3 = theme.colors.onSecondaryContainer,
 					ScaleType = Enum.ScaleType.Fit,
-					Parent = button,
+					LayoutOrder = 0,
+					Parent = row,
 				}, { ImageColor3 = "onSecondaryContainer" })
-				button.TextXAlignment = Enum.TextXAlignment.Right
-				Creator.new("UIPadding", {
-					PaddingLeft = UDim.new(0, 36),
-					PaddingRight = UDim.new(0, 16),
-					Parent = button,
-				})
 			end
+
+			Creator.new("TextLabel", {
+				Size = UDim2.new(0, 0, 0, 18),
+				AutomaticSize = Enum.AutomaticSize.X,
+				BackgroundTransparency = 1,
+				Font = theme.fonts.bold,
+				Text = text,
+				TextColor3 = theme.colors.onSecondaryContainer,
+				TextSize = theme.type.labelMedium.size,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Parent = row,
+			}, { TextColor3 = "onSecondaryContainer" })
+
+			Creator.new("UIPadding", {
+				PaddingLeft = UDim.new(0, 14),
+				PaddingRight = UDim.new(0, 14),
+				Parent = button,
+			})
+
 			Element.connect(self, button.MouseButton1Click, callback)
 			return button
 		end

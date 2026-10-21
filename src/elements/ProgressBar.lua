@@ -99,7 +99,7 @@ function ProgressBar.new(ctx)
 				Parent = circle,
 			}, { BackgroundColor3 = "primary" })
 			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = indicator })
-			Creator.new("UIStroke", {
+			local indicatorStroke = Creator.new("UIStroke", {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
 				Color = theme.colors.surface,
 				Thickness = 6,
@@ -107,7 +107,7 @@ function ProgressBar.new(ctx)
 				Parent = indicator,
 			})
 			self.indicator = indicator
-			self.indicatorStroke = indicator:GetChildren()[1]
+			self.indicatorStroke = indicatorStroke
 		else
 			local track = Creator.new("Frame", {
 				Position = UDim2.new(0, 0, 1, -8),

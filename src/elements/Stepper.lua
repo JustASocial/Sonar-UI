@@ -58,7 +58,7 @@ function Stepper.new(ctx)
 		end
 
 		local scroller = Creator.new("ScrollingFrame", {
-			Size = UDim2.new(1, 0, 0, 0),
+			Size = UDim2.new(1, 0, 0, 66),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ScrollBarThickness = 3,
@@ -93,7 +93,7 @@ function Stepper.new(ctx)
 		local theme = self.window.theme
 
 		local holder = Creator.new("Frame", {
-			Size = UDim2.fromOffset(CIRCLE, CIRCLE),
+			Size = UDim2.fromOffset(CIRCLE, 66),
 			BackgroundTransparency = 1,
 			LayoutOrder = index,
 			Parent = self.inner,
@@ -172,8 +172,8 @@ function Stepper.new(ctx)
 		local caption = nil
 		if type(step) == "table" and (step.Title or step.Description) then
 			caption = Creator.new("TextLabel", {
-				Position = UDim2.new(0.5, 0, 1, 6),
-				Size = UDim2.new(1, 0, 0, 34),
+				Position = UDim2.new(0.5, 0, 0, 34),
+				Size = UDim2.new(1, 0, 0, 32),
 				BackgroundTransparency = 1,
 				Font = theme.fonts.bold,
 				Text = step.Title or "",

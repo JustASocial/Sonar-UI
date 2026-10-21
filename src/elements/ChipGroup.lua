@@ -92,22 +92,29 @@ function ChipGroup.new(ctx)
 
 		local inner = Creator.new("Frame", {
 			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
 			Parent = main,
 		})
 		inner.LayoutOrder = 3
 		self.inner = inner
 
+		Creator.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			Wraps = true,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 8),
+			HorizontalAlignment = Enum.HorizontalAlignment.Left,
+			VerticalAlignment = Enum.VerticalAlignment.Top,
+			Parent = inner,
+		})
+
 		self.chips = {}
 		for index, option in ipairs(self.options) do
 			self:_buildChip(option, index)
 		end
 
-		Element.connect(self, inner:GetPropertyChangedSignal("AbsoluteSize"), function()
-			self:_relayout()
-		end)
-
-		self:_relayout()
+		self:_renderSelection()
 	end
 
 	function handle:_buildChip(option, index)
@@ -129,7 +136,6 @@ function ChipGroup.new(ctx)
 			BackgroundColor3 = variant.fill,
 			BackgroundTransparency = variant.fill == "surface" and 1 or 0,
 		})
-
 		Creator.new("UICorner", {
 			CornerRadius = theme.shape.chip,
 			Parent = chip,
@@ -160,10 +166,25 @@ function ChipGroup.new(ctx)
 			iconName = option.Icon
 		end
 
+		local row = Creator.new("Frame", {
+			Name = "Row",
+			Size = UDim2.new(0, 0, 1, 0),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundTransparency = 1,
+			Parent = chip,
+		})
+
+		Creator.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 6),
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Parent = row,
+		})
+
 		local label = Creator.new("TextLabel", {
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, iconName and 32 or 12, 0.5, 0),
-			Size = UDim2.new(1, iconName and -44 or -24, 1, 0),
+			Size = UDim2.new(0, 0, 0, 18),
+			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundTransparency = 1,
 			Font = theme.fonts.bold,
 			Text = text,
@@ -171,19 +192,18 @@ function ChipGroup.new(ctx)
 			TextSize = theme.type.labelLarge.size,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = chip,
+			Parent = row,
 		}, { TextColor3 = variant.text })
 
 		if iconName then
 			local icon = Creator.new("ImageLabel", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 12, 0.5, 0),
 				Size = UDim2.fromOffset(16, 16),
 				BackgroundTransparency = 1,
 				Image = Icons.image(iconName) or "",
 				ImageColor3 = theme.colors[variant.text],
 				ScaleType = Enum.ScaleType.Fit,
-				Parent = chip,
+				LayoutOrder = 0,
+				Parent = row,
 			}, { ImageColor3 = variant.text })
 			self.chipIcon = icon
 		end
@@ -191,15 +211,14 @@ function ChipGroup.new(ctx)
 		local check = nil
 		if self.multi or self.props.Variant == "filter" then
 			check = Creator.new("ImageLabel", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(1, -12, 0.5, 0),
 				Size = UDim2.fromOffset(16, 16),
 				BackgroundTransparency = 1,
 				Image = Icons.image("check") or "",
 				ImageColor3 = theme.colors.primary,
 				ImageTransparency = 1,
 				ScaleType = Enum.ScaleType.Fit,
-				Parent = chip,
+				LayoutOrder = 2,
+				Parent = row,
 			}, { ImageColor3 = "primary" })
 		end
 
@@ -276,33 +295,6 @@ function ChipGroup.new(ctx)
 				end
 			end
 		end
-	end
-
-	function handle:_relayout()
-		if not self.inner then
-			return
-		end
-		local width = self.inner.AbsoluteSize.X
-		if width <= 0 then
-			return
-		end
-		local gap = 8
-		local x = 0
-		local y = 0
-		for _, data in ipairs(self.chips) do
-			local chipWidth = data.chip.AbsoluteSize.X
-			if chipWidth <= 0 then
-				chipWidth = 80
-			end
-			if x > 0 and x + chipWidth > width then
-				x = 0
-				y = y + CHIP_HEIGHT + gap
-			end
-			data.chip.Position = UDim2.fromOffset(x, y)
-			data.chip.ZIndex = 1
-			x = x + chipWidth + gap
-		end
-		self.inner.Size = UDim2.new(1, 0, 0, y + CHIP_HEIGHT)
 	end
 
 	function handle:Set(value, skipCallback)

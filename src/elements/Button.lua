@@ -100,7 +100,7 @@ function Button.new(ctx)
 		if iconName then
 			local icon = Creator.new("ImageLabel", {
 				AnchorPoint = Vector2.new(0, 0.5),
-				Position = align == "Right" and UDim2.new(1, -size.pad, 0.5, 0) or UDim2.new(0, size.pad - iconSize - 8, 0.5, 0),
+				Position = align == "Right" and UDim2.new(1, -size.pad - iconSize, 0.5, 0) or UDim2.new(0, size.pad, 0.5, 0),
 				Size = UDim2.fromOffset(iconSize, iconSize),
 				BackgroundTransparency = 1,
 				Image = Icons.image(iconName) or "",
@@ -113,8 +113,8 @@ function Button.new(ctx)
 				text.Position = UDim2.new(0, size.pad, 0.5, 0)
 				text.Size = UDim2.new(1, -(size.pad * 2 + iconSize + 8), 1, 0)
 			else
-				text.Position = UDim2.new(0, size.pad + iconSize + 8, 0.5, 0)
-				text.Size = UDim2.new(1, -(size.pad * 2 + iconSize + 8), 1, 0)
+				text.Position = UDim2.new(0, size.pad + iconSize + 10, 0.5, 0)
+				text.Size = UDim2.new(1, -(size.pad * 2 + iconSize + 10), 1, 0)
 			end
 		end
 

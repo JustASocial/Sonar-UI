@@ -25,7 +25,14 @@ local SERIALIZERS = {
 		return element.value
 	end,
 	Keybind = function(element)
-		return element.value
+		local value = element.value
+		if value == nil then
+			return "None"
+		end
+		if type(value) == "string" then
+			return value
+		end
+		return tostring(value.Name)
 	end,
 	ColorPicker = function(element)
 		return { color = element.value and element.value:ToHex() or "#FFFFFF", alpha = element.alpha or 0 }
@@ -123,12 +130,28 @@ function ConfigModule:serialize()
 end
 
 function ConfigModule:write(payload)
-	local json = Variables.services.HttpService:JSONEncode(payload)
+	local ok, json = pcall(function()
+		return Variables.services.HttpService:JSONEncode(payload)
+	end)
+	if not ok or type(json) ~= "string" then
+		return false
+	end
 	if Variables.hasWrite() then
 		if Variables.hasMakeDir() then
-			pcall(makedir, "sonar")
+			pcall(makedir, self.manager.path)
 		end
-		writefile(self.path, json)
+		local written = pcall(writefile, self.path, json)
+		if not written then
+			local fallback = self.name .. ".json"
+			written = pcall(writefile, fallback, json)
+			if written then
+				self.path = fallback
+			end
+		end
+		if not written then
+			self.memory = json
+			return false
+		end
 		return true
 	end
 	self.memory = json
