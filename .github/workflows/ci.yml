@@ -15,6 +15,9 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Check method calls pass self
+        run: python tools/check-self-calls.py src
+
       - name: Build single file bundle
         run: python tools/build.py src /tmp/sonar.lua
 

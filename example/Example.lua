@@ -204,11 +204,7 @@ statSection:createProgressBar({
 	Value = 64,
 })
 
-statSection:createProgressBar({
-	Title = "Upload",
-	Variant = "Circular",
-	Value = 32,
-})
+
 
 local inputSection = inputs:createSection({ Title = "Text", Icon = "type" })
 
@@ -333,19 +329,7 @@ console:write("Library loaded with loadstring", "info")
 
 local specialSection = special:createSection({ Title = "Sonar original", Icon = "rocket" })
 
-specialSection:createStepper({
-	Title = "Onboarding",
-	Description = "Three steps, click to move between them",
-	Steps = {
-		{ Title = "Install", Icon = "download" },
-		{ Title = "Configure", Icon = "settings" },
-		{ Title = "Ship", Icon = "rocket" },
-	},
-	Value = 1,
-	Callback = function(step)
-		window:notify({ Title = "Step " .. step, Icon = "chevron-right" })
-	end,
-})
+
 
 specialSection:createChipGroup({
 	Title = "Chips",
@@ -363,11 +347,19 @@ specialSection:createChipGroup({
 
 specialSection:createImageUploader({
 	Title = "Banner",
-	Description = "Paste a link, drop a file or paste from the clipboard",
-	Placeholder = "Paste an image link or drop a file here",
+	Description = "Type an image id or a link, the preview shows up below",
+	Variant = "input",
+	Placeholder = "Image id or link",
 	OnSelect = function(source)
 		window:notify({ Title = "Image ready", Content = source, Icon = "image" })
 	end,
+})
+
+specialSection:createImageUploader({
+	Title = "Preset",
+	Description = "A ready made image with the id already filled in",
+	Variant = "preset",
+	Image = "rbxassetid://13160411435",
 })
 
 specialSection:createImage({

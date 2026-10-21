@@ -49,10 +49,10 @@ function Tab:_createSelector()
 	self.item = item
 
 	if sidebar then
-		item.Size = UDim2.new(1, 0, 0, 40)
+		item.Size = UDim2.new(1, 0, 0, 42)
 		item.AutomaticSize = Enum.AutomaticSize.None
 	else
-		item.Size = UDim2.new(0, 0, 0, 34)
+		item.Size = UDim2.new(0, 0, 0, 36)
 		item.AutomaticSize = Enum.AutomaticSize.X
 	end
 
@@ -67,7 +67,7 @@ function Tab:_createSelector()
 	self.indicator = indicator
 
 	Creator.new("UICorner", {
-		CornerRadius = sidebar and theme.shape.button or theme.shape.button,
+		CornerRadius = theme.shape.button,
 		Parent = indicator,
 	})
 
@@ -81,37 +81,52 @@ function Tab:_createSelector()
 	}, { BackgroundColor3 = "onSurface" })
 	self.hover = hover
 
-	local left = 12
+	local row = Creator.new("Frame", {
+		Name = "Row",
+		Size = UDim2.new(1, 0, 1, 0),
+		AutomaticSize = sidebar and Enum.AutomaticSize.None or Enum.AutomaticSize.X,
+		BackgroundTransparency = 1,
+		Parent = item,
+	})
+
+	Creator.new("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Padding = UDim.new(0, 10),
+		HorizontalAlignment = Enum.HorizontalAlignment.Left,
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Parent = row,
+	})
+
+	local left = 16
 	local icon = nil
 	if self.icon then
 		icon = Creator.new("ImageLabel", {
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 12, 0.5, 0),
 			Size = UDim2.fromOffset(20, 20),
 			BackgroundTransparency = 1,
 			Image = Icons.image(self.icon) or "",
 			ImageColor3 = theme.colors.onSurfaceVariant,
 			ScaleType = Enum.ScaleType.Fit,
-			Parent = item,
+			LayoutOrder = 0,
+			Parent = row,
 		}, { ImageColor3 = "onSurfaceVariant" })
 		self.iconLabel = icon
-		left = 12 + 20 + 10
-	else
-		left = 14
+		left = 16 + 20 + 10
 	end
 
 	local label = Creator.new("TextLabel", {
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, left, 0.5, 0),
-		Size = UDim2.new(1, -(left + 12), 1, 0),
+		Size = UDim2.new(1, -(left + 16), 1, 0),
+		AutomaticSize = sidebar and Enum.AutomaticSize.None or Enum.AutomaticSize.X,
 		BackgroundTransparency = 1,
-		Font = theme.fonts.bold,
+		Font = theme.fonts.medium,
 		Text = self.name,
 		TextColor3 = theme.colors.onSurfaceVariant,
 		TextSize = theme.type.labelLarge.size,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Center,
 		TextTruncate = Enum.TextTruncate.AtEnd,
-		Parent = item,
+		LayoutOrder = 1,
+		Parent = row,
 	}, { TextColor3 = "onSurfaceVariant" })
 	self.label = label
 
@@ -130,10 +145,10 @@ function Tab:_createSelector()
 	end
 
 	local function onEnter()
-		Motion.tween(hover, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short4)
+		Motion.tween(hover, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
 	end
 	local function onLeave()
-		Motion.tween(hover, { BackgroundTransparency = 1 }, theme.motion.short4)
+		Motion.tween(hover, { BackgroundTransparency = 1 }, theme.motion.short)
 	end
 	item.MouseEnter:Connect(onEnter)
 	item.MouseLeave:Connect(onLeave)
@@ -142,12 +157,12 @@ function Tab:_createSelector()
 	end)
 
 	if not sidebar then
-		local padding = Creator.new("UIPadding", {
-			PaddingLeft = UDim.new(0, 16),
-			PaddingRight = UDim.new(0, 16),
+		Creator.new("UIPadding", {
+			PaddingLeft = UDim.new(0, 14),
+			PaddingRight = UDim.new(0, 14),
 			Parent = item,
 		})
-		self.padding = padding
+		self.padding = nil
 	end
 end
 
@@ -170,7 +185,7 @@ function Tab:_createPage()
 	self.page = page
 
 	local layout = Creator.new("UIListLayout", {
-		Padding = UDim.new(0, 8),
+		Padding = UDim.new(0, 10),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
 		Parent = page,
@@ -178,10 +193,10 @@ function Tab:_createPage()
 	self.pageLayout = layout
 
 	local padding = Creator.new("UIPadding", {
-		PaddingTop = UDim.new(0, 12),
-		PaddingBottom = UDim.new(0, 16),
-		PaddingLeft = UDim.new(0, 14),
-		PaddingRight = UDim.new(0, 14),
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 14),
+		PaddingLeft = UDim.new(0, 4),
+		PaddingRight = UDim.new(0, 4),
 		Parent = page,
 	})
 	self.pagePadding = padding
@@ -216,22 +231,24 @@ function Tab:reset()
 end
 
 function Tab:deselect()
-	self.selected = false
 	local theme = self.window.theme
-	local sidebar = self.window.layout == "sidebar"
+	self.selected = false
 	Motion.tween(self.indicator, { BackgroundTransparency = 1 }, theme.motion.short)
-	Motion.tween(self.underline or self.indicator, { BackgroundTransparency = 1 }, theme.motion.short)
+	if self.underline then
+		Motion.tween(self.underline, { BackgroundTransparency = 1 }, theme.motion.short)
+	end
 	Motion.tween(self.label, { TextColor3 = theme.colors.onSurfaceVariant }, theme.motion.short)
-	Motion.tween(self.iconLabel or self.label, { ImageColor3 = theme.colors.onSurfaceVariant }, theme.motion.short)
+	if self.iconLabel then
+		Motion.tween(self.iconLabel, { ImageColor3 = theme.colors.onSurfaceVariant }, theme.motion.short)
+	end
 end
 
 function Tab:_applySelected()
 	local theme = self.window.theme
-	local sidebar = self.window.layout == "sidebar"
 	self.selected = true
-	if sidebar then
+	if self.window.layout == "sidebar" then
 		Motion.tween(self.indicator, { BackgroundTransparency = 0 }, theme.motion.short)
-	else
+	elseif self.underline then
 		Motion.tween(self.underline, { BackgroundTransparency = 0 }, theme.motion.short)
 	end
 	Motion.tween(self.label, { TextColor3 = theme.colors.onSurface }, theme.motion.short)

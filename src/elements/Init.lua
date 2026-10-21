@@ -21,7 +21,6 @@ local MODULES = {
 	Slider = "Slider",
 	Space = "Space",
 	Stat = "Stat",
-	Stepper = "Stepper",
 	TextArea = "TextArea",
 	Toggle = "Toggle",
 }

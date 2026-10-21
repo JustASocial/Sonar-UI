@@ -82,7 +82,7 @@ function Popup.create(window, props)
 	local dialogSurface = Creator.new("Frame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = theme.colors.surfaceContainerHigh,
-		BackgroundTransparency = 1,
+		BackgroundTransparency = 0,
 		BorderSizePixel = 0,
 		Parent = dialog,
 	}, { BackgroundColor3 = "surfaceContainerHigh" })

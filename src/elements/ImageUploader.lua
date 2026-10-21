@@ -1,12 +1,11 @@
 local Element = require(script.Parent.Parent.core.Element)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
-local Variables = require(script.Parent.Parent.core.Variables)
 local Icons = require(script.Parent.Parent.icons.Init)
 
 local ImageUploader = {}
 
-local DASH_LENGTH = 22
+local PREVIEW_HEIGHT = 150
 
 function ImageUploader.new(ctx)
 	local props = ctx.props or {}
@@ -16,11 +15,10 @@ function ImageUploader.new(ctx)
 		container = ctx.container,
 		props = props,
 	})
+	handle.variant = props.Variant or "input"
 	handle.value = props.Image or nil
 
-	local onSelect = props.Callback or props.OnSelect
-
-	local function normalizeSource(source)
+	local function normalize(source)
 		if type(source) == "number" then
 			return "rbxassetid://" .. tostring(source)
 		end
@@ -38,22 +36,19 @@ function ImageUploader.new(ctx)
 	end
 
 	handle.setSource = function(self, source)
-		local normalized = normalizeSource(source)
+		local normalized = normalize(source)
 		self.value = normalized
 		if self.preview then
 			self.preview.Image = normalized or ""
 		end
-		if self.placeholder then
-			self.placeholder.Visible = normalized == nil
+		if self.emptyState then
+			self.emptyState.Visible = normalized == nil
 		end
 		if self.urlBox then
 			self.urlBox.Text = normalized or ""
 		end
-		if self.clearButton then
-			self.clearButton.Visible = normalized ~= nil
-		end
-		if onSelect and normalized ~= nil then
-			task.spawn(onSelect, normalized)
+		if props.Callback and normalized ~= nil then
+			task.spawn(props.Callback, normalized)
 		end
 		if self.window and self.flag then
 			self.window:_persist(self)
@@ -64,6 +59,8 @@ function ImageUploader.new(ctx)
 		local window = self.window
 		local theme = window.theme
 		Creator.window = window
+
+		local preset = self.variant == "preset"
 
 		local main = Creator.new("Frame", {
 			Name = "ImageUploader",
@@ -91,244 +88,193 @@ function ImageUploader.new(ctx)
 				TextColor3 = theme.colors.onSurface,
 				TextSize = theme.type.titleMedium.size,
 				TextXAlignment = Enum.TextXAlignment.Left,
+				LayoutOrder = 1,
 				Parent = main,
 			}, { TextColor3 = "onSurface" })
-			title.LayoutOrder = 1
 			self.title = title
 		end
 
-		local drop = Creator.new("Frame", {
-			Size = UDim2.new(1, 0, 0, 132),
-			BackgroundColor3 = theme.colors.surfaceContainerLow,
+		if not preset then
+			local field = Creator.new("Frame", {
+				Name = "Field",
+				Size = UDim2.new(1, 0, 0, 56),
+				BackgroundColor3 = theme.colors.surfaceContainerHighest,
+				BorderSizePixel = 0,
+				LayoutOrder = 2,
+				Parent = main,
+			}, { BackgroundColor3 = "surfaceContainerHighest" })
+			self.field = field
+
+			Creator.new("UICorner", {
+				CornerRadius = theme.shape.field,
+				Parent = field,
+			})
+
+			local indicator = Creator.new("Frame", {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, 0),
+				Size = UDim2.new(1, 0, 0, 2),
+				BackgroundColor3 = theme.colors.onSurfaceVariant,
+				BackgroundTransparency = 0.7,
+				BorderSizePixel = 0,
+				Parent = field,
+			}, { BackgroundColor3 = "onSurfaceVariant" })
+			self.indicator = indicator
+
+			local label = Creator.new("TextLabel", {
+				Position = UDim2.new(0, 16, 0, 6),
+				Size = UDim2.new(1, -32, 0, 16),
+				BackgroundTransparency = 1,
+				Font = theme.fonts.bold,
+				Text = props.Placeholder or "Image id or link",
+				TextColor3 = theme.colors.onSurfaceVariant,
+				TextSize = theme.type.labelMedium.size,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextYAlignment = Enum.TextYAlignment.Center,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				Parent = field,
+			}, { TextColor3 = "onSurfaceVariant" })
+			self.label = label
+
+			local urlBox = Creator.new("TextBox", {
+				Name = "TextBox",
+				Position = UDim2.new(0, 16, 0, 24),
+				Size = UDim2.new(1, -32, 1, -28),
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				Text = "",
+				PlaceholderText = "",
+				TextColor3 = theme.colors.onSurface,
+				TextSize = theme.type.bodyLarge.size,
+				Font = theme.fonts.regular,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextYAlignment = Enum.TextYAlignment.Center,
+				ClearTextOnFocus = false,
+				Parent = field,
+			}, { TextColor3 = "onSurface" })
+			self.urlBox = urlBox
+
+			Element.connect(self, urlBox.Focused, function()
+				Motion.tween(indicator, {
+					BackgroundColor3 = theme.colors.primary,
+					BackgroundTransparency = 0,
+				}, theme.motion.standard)
+			end)
+
+			Element.connect(self, urlBox.FocusLost, function()
+				Motion.tween(indicator, {
+					BackgroundColor3 = theme.colors.onSurfaceVariant,
+					BackgroundTransparency = 0.7,
+				}, theme.motion.standard)
+				self:setSource(urlBox.Text)
+			end)
+
+			Element.connect(self, urlBox:GetPropertyChangedSignal("Text"), function()
+				if urlBox.Text == "" then
+					self:setSource(nil)
+				end
+			end)
+		end
+
+		local previewFrame = Creator.new("Frame", {
+			Name = "Preview",
+			Size = UDim2.new(1, 0, 0, PREVIEW_HEIGHT),
+			BackgroundColor3 = theme.colors.surfaceContainerHighest,
+			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
+			LayoutOrder = preset and 2 or 3,
 			Parent = main,
-		}, { BackgroundColor3 = "surfaceContainerLow" })
-		drop.LayoutOrder = 2
-		self.drop = drop
+		}, { BackgroundColor3 = "surfaceContainerHighest" })
+		self.previewFrame = previewFrame
 
 		Creator.new("UICorner", {
 			CornerRadius = theme.shape.card,
-			Parent = drop,
+			Parent = previewFrame,
 		})
-
-		local stroke = Creator.new("UIStroke", {
+		Creator.new("UIStroke", {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = theme.colors.outlineVariant,
 			Transparency = 0,
 			Thickness = 1,
-			Parent = drop,
+			Parent = previewFrame,
 		}, { Color = "outlineVariant" })
-		self.stroke = stroke
 
 		local preview = Creator.new("ImageLabel", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			Image = self.value or "",
 			ScaleType = Enum.ScaleType.Fit,
-			Parent = drop,
+			Parent = previewFrame,
 		})
 		self.preview = preview
 
-		local placeholder = Creator.new("Frame", {
+		local emptyState = Creator.new("Frame", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
-			Parent = drop,
+			Visible = self.value == nil,
+			Parent = previewFrame,
 		})
-		self.placeholder = placeholder
+		self.emptyState = emptyState
 
-		local placeholderIcon = Creator.new("ImageLabel", {
+		local emptyIcon = Creator.new("ImageLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.42, 0),
-			Size = UDim2.fromOffset(32, 32),
+			Position = UDim2.new(0.5, 0, 0.5, -10),
+			Size = UDim2.fromOffset(28, 28),
 			BackgroundTransparency = 1,
 			Image = Icons.image("image") or "",
 			ImageColor3 = theme.colors.onSurfaceVariant,
 			ScaleType = Enum.ScaleType.Fit,
-			Parent = placeholder,
+			Parent = emptyState,
 		}, { ImageColor3 = "onSurfaceVariant" })
 
-		local placeholderText = Creator.new("TextLabel", {
+		local emptyText = Creator.new("TextLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.72, 0),
+			Position = UDim2.new(0.5, 0, 0.5, 18),
 			Size = UDim2.new(0.8, 0, 0, 18),
 			BackgroundTransparency = 1,
 			Font = theme.fonts.regular,
-			Text = props.Placeholder or "Paste an image link or drop a file",
+			Text = props.EmptyText or "Preview appears here",
 			TextColor3 = theme.colors.onSurfaceVariant,
 			TextSize = theme.type.bodySmall.size,
 			TextXAlignment = Enum.TextXAlignment.Center,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = placeholder,
+			Parent = emptyState,
 		}, { TextColor3 = "onSurfaceVariant" })
 
-		local urlBox = Creator.new("TextBox", {
-			Size = UDim2.new(1, 0, 0, 40),
-			BackgroundColor3 = theme.colors.surfaceContainerHighest,
-			BorderSizePixel = 0,
-			Text = self.value or "",
-			PlaceholderText = "https://... or rbxassetid",
-			PlaceholderColor3 = theme.colors.onSurfaceVariant,
-			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.bodyMedium.size,
-			Font = theme.fonts.regular,
-			ClearTextOnFocus = false,
-			Parent = main,
-		}, { BackgroundColor3 = "surfaceContainerHighest" })
-		urlBox.LayoutOrder = 3
-		Creator.new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = urlBox })
-		Creator.new("UIPadding", {
-			PaddingLeft = UDim.new(0, 12),
-			PaddingRight = UDim.new(0, 12),
-			Parent = urlBox,
-		})
-		self.urlBox = urlBox
-
-		local actions = Creator.new("Frame", {
-			Size = UDim2.new(1, 0, 0, 36),
-			BackgroundTransparency = 1,
-			Parent = main,
-		})
-		actions.LayoutOrder = 4
-		Creator.new("UIListLayout", {
-			FillDirection = Enum.FillDirection.Horizontal,
-			HorizontalAlignment = Enum.HorizontalAlignment.Left,
-			Padding = UDim.new(0, 8),
-			Parent = actions,
-		})
-
-		local function makeButton(text, iconName, order, callback)
-			local button = Creator.new("TextButton", {
-				Size = UDim2.new(0, 0, 0, 36),
-				AutomaticSize = Enum.AutomaticSize.X,
-				BackgroundColor3 = theme.colors.secondaryContainer,
-				BorderSizePixel = 0,
-				AutoButtonColor = false,
-				Text = "",
-				LayoutOrder = order,
-				Parent = actions,
-			}, {
-				BackgroundColor3 = "secondaryContainer",
-			})
-
-			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = button })
-
-			local row = Creator.new("Frame", {
-				Size = UDim2.new(0, 0, 1, 0),
-				AutomaticSize = Enum.AutomaticSize.X,
+		if props.Description then
+			local desc = Creator.new("TextLabel", {
+				Size = UDim2.new(1, 0, 0, 18),
 				BackgroundTransparency = 1,
-				Parent = button,
-			})
-
-			Creator.new("UIListLayout", {
-				FillDirection = Enum.FillDirection.Horizontal,
-				SortOrder = Enum.SortOrder.LayoutOrder,
-				Padding = UDim.new(0, 6),
-				VerticalAlignment = Enum.VerticalAlignment.Center,
-				Parent = row,
-			})
-
-			if iconName then
-				Creator.new("ImageLabel", {
-					Size = UDim2.fromOffset(16, 16),
-					BackgroundTransparency = 1,
-					Image = Icons.image(iconName) or "",
-					ImageColor3 = theme.colors.onSecondaryContainer,
-					ScaleType = Enum.ScaleType.Fit,
-					LayoutOrder = 0,
-					Parent = row,
-				}, { ImageColor3 = "onSecondaryContainer" })
-			end
-
-			Creator.new("TextLabel", {
-				Size = UDim2.new(0, 0, 0, 18),
-				AutomaticSize = Enum.AutomaticSize.X,
-				BackgroundTransparency = 1,
-				Font = theme.fonts.bold,
-				Text = text,
-				TextColor3 = theme.colors.onSecondaryContainer,
-				TextSize = theme.type.labelMedium.size,
+				Font = theme.fonts.regular,
+				Text = props.Description,
+				TextColor3 = theme.colors.onSurfaceVariant,
+				TextSize = theme.type.bodySmall.size,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				Parent = row,
-			}, { TextColor3 = "onSecondaryContainer" })
-
-			Creator.new("UIPadding", {
-				PaddingLeft = UDim.new(0, 14),
-				PaddingRight = UDim.new(0, 14),
-				Parent = button,
-			})
-
-			Element.connect(self, button.MouseButton1Click, callback)
-			return button
+				TextYAlignment = Enum.TextYAlignment.Center,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				LayoutOrder = 4,
+				Parent = main,
+			}, { TextColor3 = "onSurfaceVariant" })
+			self.desc = desc
 		end
-
-		local pasteButton = makeButton("Paste", "clipboard", 1, function()
-			local text = Variables.getClipboard()
-			if text then
-				self:setSource(text)
-			end
-		end)
-
-		local clearButton = makeButton("Clear", "x", 2, function()
-			self:setSource(nil)
-		end)
-		self.clearButton = clearButton
-
-		local applyButton = makeButton("Apply", "check", 3, function()
-			self:setSource(urlBox.Text)
-		end)
-
-		Element.connect(self, urlBox.FocusLost, function()
-			local text = urlBox.Text
-			if text ~= "" then
-				self:setSource(text)
-			end
-		end)
-
-		local dragging = false
-		Element.connect(self, drop.InputBegan, function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = true
-				Motion.tween(stroke, { Color = theme.colors.primary }, theme.motion.short4)
-			end
-		end)
-		Element.connect(self, drop.InputEnded, function()
-			dragging = false
-			Motion.tween(stroke, { Color = theme.colors.outlineVariant }, theme.motion.short4)
-		end)
-
-		self._pasteConnection = Element.connect(self, Variables.services.UserInputService.InputBegan, function(input, processed)
-			if processed then
-				return
-			end
-			if input.KeyCode == Enum.KeyCode.V and Variables.getClipboard then
-				local text = Variables.getClipboard()
-				if text and text:match("^https?://") or (text and text:match("^%d+$")) then
-					self:setSource(text)
-				end
-			end
-		end)
-
-		self.placeholder.Visible = self.value == nil
-		self.clearButton.Visible = self.value ~= nil
 	end
 
 	function handle:Set(value, skipCallback)
-		local normalized = normalizeSource(value)
+		local normalized = value
+		if type(value) == "number" then
+			normalized = "rbxassetid://" .. tostring(value)
+		end
 		self.value = normalized
 		if self.preview then
 			self.preview.Image = normalized or ""
 		end
-		if self.placeholder then
-			self.placeholder.Visible = normalized == nil
+		if self.emptyState then
+			self.emptyState.Visible = normalized == nil
 		end
 		if self.urlBox then
 			self.urlBox.Text = normalized or ""
 		end
-		if self.clearButton then
-			self.clearButton.Visible = normalized ~= nil
-		end
-		if not skipCallback and onSelect then
-			task.spawn(onSelect, normalized)
+		if not skipCallback and props.Callback then
+			task.spawn(props.Callback, normalized)
 		end
 	end
 
@@ -341,8 +287,18 @@ function ImageUploader.new(ctx)
 			return
 		end
 		local theme = self.window.theme
-		self.drop.BackgroundColor3 = theme.colors.surfaceContainerLow
-		self.urlBox.BackgroundColor3 = theme.colors.surfaceContainerHighest
+		if self.title then
+			self.title.TextColor3 = theme.colors.onSurface
+		end
+		if self.field then
+			self.field.BackgroundColor3 = theme.colors.surfaceContainerHighest
+		end
+		if self.previewFrame then
+			self.previewFrame.BackgroundColor3 = theme.colors.surfaceContainerHighest
+		end
+		if self.desc then
+			self.desc.TextColor3 = theme.colors.onSurfaceVariant
+		end
 	end
 
 	function handle:_destroy()

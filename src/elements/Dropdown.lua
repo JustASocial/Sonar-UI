@@ -194,7 +194,7 @@ function Dropdown.new(ctx)
 		local menuSurface = Creator.new("Frame", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = theme.colors.surfaceContainerHigh,
-			BackgroundTransparency = 1,
+			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
 			Parent = menu,
 		}, { BackgroundColor3 = "surfaceContainerHigh" })

@@ -62,7 +62,6 @@ local console = section:createConsole({ Title = "Log", Height = 120 })
 local image = section:createImage({ Image = "rbxassetid://1", Width = 200 })
 local uploader = section:createImageUploader({ Title = "Banner" })
 local chips = section:createChipGroup({ Title = "Chips", Options = { "One", "Two", "Three" }, Multi = true })
-local stepper = section:createStepper({ Title = "Steps", Steps = { { Title = "A" }, { Title = "B" } }, Value = 1 })
 local group = section:createGroup({ Direction = "row" })
 group:createButton({ Title = "L", Variant = "tonal" })
 
@@ -93,8 +92,6 @@ print("rating after click:", rating.value)
 __fire(chips.chips[2].chip, "MouseButton1Click")
 print("chips:", type(chips.value), #chips.value)
 
-__fire(stepper.items[2].click, "MouseButton1Click")
-print("stepper:", stepper.value)
 
 __fire(dropdown.trigger, "MouseButton1Click")
 print("dropdown menu open:", dropdown.menu ~= nil)
@@ -174,18 +171,15 @@ do
 
 	local codeCanvas = code.scroller.CanvasSize.Y.Offset
 	local consoleCanvas = console.scroller.CanvasSize.Y.Offset
-	local stepperCanvas = stepper.scroller.CanvasSize.X.Offset
-	__fire(dropdown.trigger, "MouseButton1Click")
+		__fire(dropdown.trigger, "MouseButton1Click")
 	local dropdownCanvas = dropdown.menuList.CanvasSize.Y.Offset
 	print("code canvas: " .. tostring(codeCanvas))
 	print("console canvas: " .. tostring(consoleCanvas))
 	print("dropdown canvas: " .. tostring(dropdownCanvas))
-	print("stepper canvas: " .. tostring(stepperCanvas))
 	assert(codeCanvas > 0, "code canvas must have height")
 	assert(consoleCanvas > 0, "console canvas must have height")
 	assert(dropdownCanvas > 0, "dropdown canvas must have height")
-	assert(stepperCanvas > 0, "stepper canvas must have width")
-	print("layout assertions passed")
+		print("layout assertions passed")
 end
 
 print("--- theme and layout ---")

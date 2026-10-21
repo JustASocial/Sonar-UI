@@ -29,6 +29,10 @@ function Sonar.buildTheme(spec)
 	return Theme.build(spec or {})
 end
 
+function Sonar.palette(seed, mode)
+	return Theme.palette(seed, mode)
+end
+
 function Sonar.schemes()
 	return Schemes.list()
 end

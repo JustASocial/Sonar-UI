@@ -5,6 +5,8 @@ local Motion = require(script.Parent.Parent.core.Motion)
 
 local ProgressBar = {}
 
+local TRACK_HEIGHT = 8
+
 function ProgressBar.new(ctx)
 	local props = ctx.props or {}
 	local handle = Element.new({
@@ -16,104 +18,64 @@ function ProgressBar.new(ctx)
 	handle.value = props.Value or 0
 	handle.min = props.Min or 0
 	handle.max = props.Max or 100
-	handle.circular = props.Variant == "Circular"
 
 	function handle:_build(parentFrame, order)
 		local window = self.window
 		local theme = window.theme
 		Creator.window = window
 
-		if self.circular then
-			Row.build(self, {
-				title = props.Title,
-				description = props.Description,
-				icon = props.Icon,
-				controlWidth = 48,
-				parent = parentFrame,
-				order = order,
-			})
+		Row.build(self, {
+			title = props.Title,
+			description = props.Description,
+			icon = props.Icon,
+			controlWidth = 64,
+			parent = parentFrame,
+			order = order,
+			height = 72,
+		})
 
-			local content = self.content
+		local content = self.content
 
-			local circle = Creator.new("Frame", {
-				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, 0, 0.5, 0),
-				Size = UDim2.fromOffset(44, 44),
-				BackgroundTransparency = 1,
-				Parent = content,
-			})
-			self.circle = circle
+		local valueLabel = Creator.new("TextLabel", {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, 0, 0.5, 0),
+			Size = UDim2.fromOffset(58, 20),
+			BackgroundTransparency = 1,
+			Font = theme.fonts.bold,
+			Text = "",
+			TextColor3 = theme.colors.primary,
+			TextSize = theme.type.labelLarge.size,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			Parent = content,
+		}, { TextColor3 = "primary" })
+		self.valueLabel = valueLabel
 
-			local track = Creator.new("Frame", {
-				Size = UDim2.fromOffset(40, 40),
-				BackgroundColor3 = theme.colors.surfaceVariant,
-				BorderSizePixel = 0,
-				Parent = circle,
-			}, { BackgroundColor3 = "surfaceVariant" })
-			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = track })
+		local track = Creator.new("Frame", {
+			Position = UDim2.new(0, 0, 1, -18),
+			Size = UDim2.new(1, 0, 0, TRACK_HEIGHT),
+			BackgroundColor3 = theme.colors.surfaceVariant,
+			BorderSizePixel = 0,
+			Parent = self.main,
+		}, { BackgroundColor3 = "surfaceVariant" })
+		self.track = track
 
-			local indicator = Creator.new("Frame", {
-				Size = UDim2.fromOffset(40, 40),
-				BackgroundColor3 = theme.colors.primary,
-				BorderSizePixel = 0,
-				Parent = circle,
-			}, { BackgroundColor3 = "primary" })
-			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = indicator })
-			local indicatorStroke = Creator.new("UIStroke", {
-				ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-				Color = theme.colors.surface,
-				Thickness = 6,
-				Transparency = 1,
-				Parent = indicator,
-			})
-			self.indicator = indicator
-			self.indicatorStroke = indicatorStroke
-		else
-			Row.build(self, {
-				title = props.Title,
-				description = props.Description,
-				icon = props.Icon,
-				controlWidth = 70,
-				parent = parentFrame,
-				order = order,
-				height = 76,
-			})
+		Creator.new("UICorner", {
+			CornerRadius = UDim.new(1, 0),
+			Parent = track,
+		})
 
-			local content = self.content
+		local indicator = Creator.new("Frame", {
+			Size = UDim2.new(0, 0, 1, 0),
+			BackgroundColor3 = theme.colors.primary,
+			BorderSizePixel = 0,
+			Parent = track,
+		}, { BackgroundColor3 = "primary" })
+		self.indicator = indicator
 
-			local valueLabel = Creator.new("TextLabel", {
-				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, 0, 0.5, 0),
-				Size = UDim2.fromOffset(64, 22),
-				BackgroundTransparency = 1,
-				Font = theme.fonts.medium,
-				Text = "",
-				TextColor3 = theme.colors.primary,
-				TextSize = theme.type.labelLarge.size,
-				TextXAlignment = Enum.TextXAlignment.Right,
-				Parent = content,
-			}, { TextColor3 = "primary" })
-			self.valueLabel = valueLabel
-
-			local track = Creator.new("Frame", {
-				Position = UDim2.new(0, 0, 1, -20),
-				Size = UDim2.new(1, 0, 0, 6),
-				BackgroundColor3 = theme.colors.surfaceVariant,
-				BorderSizePixel = 0,
-				Parent = self.main,
-			}, { BackgroundColor3 = "surfaceVariant" })
-			self.track = track
-			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = track })
-
-			local indicator = Creator.new("Frame", {
-				Size = UDim2.new(0, 0, 1, 0),
-				BackgroundColor3 = theme.colors.primary,
-				BorderSizePixel = 0,
-				Parent = track,
-			}, { BackgroundColor3 = "primary" })
-			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = indicator })
-			self.indicator = indicator
-		end
+		Creator.new("UICorner", {
+			CornerRadius = UDim.new(1, 0),
+			Parent = indicator,
+		})
 
 		self:_render()
 	end
@@ -126,24 +88,26 @@ function ProgressBar.new(ctx)
 		return math.clamp((self.value - self.min) / span, 0, 1)
 	end
 
-	function handle:_render()
+	function handle:_render(animate)
 		if not self.main then
 			return
 		end
 		local ratio = self:_ratio()
-		if self.circular then
-			self.indicatorStroke.Transparency = 1 - ratio
+		local theme = self.window.theme
+		local target = UDim2.new(ratio, 0, 1, 0)
+		if animate then
+			Motion.tween(self.indicator, { Size = target }, theme.motion.standard)
 		else
-			self.indicator.Size = UDim2.new(ratio, 0, 1, 0)
-			self.valueLabel.Text = props.Format and props.Format(self.value, ratio)
-				or string.format("%d%%", math.floor(ratio * 100))
+			self.indicator.Size = target
 		end
+		self.valueLabel.Text = props.Format and props.Format(self.value, ratio)
+			or string.format("%d%%", math.floor(ratio * 100))
 	end
 
 	function handle:Set(value, skipCallback)
 		self.value = value
 		if self.main then
-			self:_render()
+			self:_render(true)
 		end
 		if not skipCallback and props.Callback then
 			task.spawn(props.Callback, value)
@@ -167,9 +131,7 @@ function ProgressBar.new(ctx)
 		if self.track then
 			self.track.BackgroundColor3 = theme.colors.surfaceVariant
 		end
-		if self.valueLabel then
-			self.valueLabel.TextColor3 = theme.colors.primary
-		end
+		self.valueLabel.TextColor3 = theme.colors.primary
 	end
 
 	function handle:_destroy()
