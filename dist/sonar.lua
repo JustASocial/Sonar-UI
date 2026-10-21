@@ -63,9 +63,6 @@ __mods["config.Init"] = function()
 		Chip = function(element)
 			return element.value
 		end,
-		Stepper = function(element)
-			return element.value
-		end,
 		Rating = function(element)
 			return element.value
 		end,
@@ -107,9 +104,6 @@ __mods["config.Init"] = function()
 		end,
 		Chip = function(element, data)
 			element:Set(data, true)
-		end,
-		Stepper = function(element, data)
-			element:Set(tonumber(data) or 1, true)
 		end,
 		Rating = function(element, data)
 			element:Set(tonumber(data) or 0, true)
