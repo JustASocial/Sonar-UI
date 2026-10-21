@@ -48,7 +48,14 @@ __mods["config.Init"] = function()
 			return element.value
 		end,
 		Keybind = function(element)
-			return element.value
+			local value = element.value
+			if value == nil then
+				return "None"
+			end
+			if type(value) == "string" then
+				return value
+			end
+			return tostring(value.Name)
 		end,
 		ColorPicker = function(element)
 			return { color = element.value and element.value:ToHex() or "#FFFFFF", alpha = element.alpha or 0 }
@@ -146,12 +153,28 @@ __mods["config.Init"] = function()
 	end
 
 	function ConfigModule:write(payload)
-		local json = Variables.services.HttpService:JSONEncode(payload)
+		local ok, json = pcall(function()
+			return Variables.services.HttpService:JSONEncode(payload)
+		end)
+		if not ok or type(json) ~= "string" then
+			return false
+		end
 		if Variables.hasWrite() then
 			if Variables.hasMakeDir() then
-				pcall(makedir, "sonar")
+				pcall(makedir, self.manager.path)
 			end
-			writefile(self.path, json)
+			local written = pcall(writefile, self.path, json)
+			if not written then
+				local fallback = self.name .. ".json"
+				written = pcall(writefile, fallback, json)
+				if written then
+					self.path = fallback
+				end
+			end
+			if not written then
+				self.memory = json
+				return false
+			end
 			return true
 		end
 		self.memory = json
@@ -288,6 +311,8 @@ __mods["core.Container"] = function()
 		end
 		if self.built then
 			self:buildChild(handle)
+			local Element = __require("core.Element")
+			Element.reveal(handle, 0)
 		end
 	end
 
@@ -344,8 +369,21 @@ __mods["core.Container"] = function()
 			return
 		end
 		self.built = true
-		for _, handle in ipairs(self.children) do
+		local children = self.children
+		for index, handle in ipairs(children) do
 			self:buildChild(handle)
+		end
+		self:_reveal(children)
+	end
+
+	function Container:_reveal(children)
+		local Element = __require("core.Element")
+		local index = 0
+		for _, handle in ipairs(children) do
+			index = index + 1
+			if handle.main then
+				Element.reveal(handle, (index - 1) * 0.035)
+			end
 		end
 	end
 
@@ -927,10 +965,64 @@ __mods["core.Element"] = function()
 		Motion.tween(handle.stateLayer, { BackgroundTransparency = target }, theme.motion.short4)
 	end
 
-	function Element.setPressed(handle, pressed)
-		if not handle.stateLayer or handle.locked then
+	function Element.reveal(handle, delay)
+		local main = handle.main
+		if not main or not main.Parent then
 			return
 		end
+		local theme = handle.window.theme
+		local targets = {}
+		local originals = {}
+
+		for _, child in ipairs(main:GetDescendants()) do
+			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ImageLabel") then
+				table.insert(targets, child)
+				if child:IsA("ImageLabel") then
+					originals[child] = child.ImageTransparency
+				else
+					originals[child] = child.TextTransparency
+				end
+			end
+		end
+
+		local startPosition = main.Position
+		local originalTransparency = main.BackgroundTransparency
+		main.Position = UDim2.new(
+			startPosition.X.Scale,
+			startPosition.X.Offset,
+			startPosition.Y.Scale,
+			startPosition.Y.Offset + 12
+		)
+		main.BackgroundTransparency = 1
+		for _, target in ipairs(targets) do
+			if target:IsA("ImageLabel") then
+				target.ImageTransparency = 1
+			else
+				target.TextTransparency = 1
+			end
+		end
+
+		task.delay(delay or 0, function()
+			if not main.Parent then
+				return
+			end
+			Motion.tween(main, {
+				Position = startPosition,
+				BackgroundTransparency = originalTransparency,
+			}, theme.motion.emphasizedDecelerate)
+			for _, target in ipairs(targets) do
+				if target:IsA("ImageLabel") then
+					Motion.tween(target, { ImageTransparency = originals[target] }, theme.motion.emphasizedDecelerate)
+				else
+					Motion.tween(target, { TextTransparency = originals[target] }, theme.motion.emphasizedDecelerate)
+				end
+			end
+		end)
+	end
+
+	function Element.setPressed(handle, pressed)
+		if not handle.stateLayer or handle.locked then
+			return	end
 		local theme = handle.window.theme
 		local target = pressed and 1 - theme.state.pressed or 1
 		Motion.tween(handle.stateLayer, { BackgroundTransparency = target }, theme.motion.short4)
@@ -1216,8 +1308,6 @@ __mods["core.Notification"] = function()
 
 	local Notification = {}
 
-	local QUEUE = {}
-
 	function Notification.create(window, props)
 		props = props or {}
 		local theme = window.theme
@@ -1226,8 +1316,8 @@ __mods["core.Notification"] = function()
 		local container = Creator.new("Frame", {
 			Name = "Notification",
 			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.new(0.5, 0, 1, -24),
-			Size = UDim2.new(0, 420, 0, 64),
+			Position = UDim2.new(0.5, 0, 1, 0),
+			Size = UDim2.new(0, 440, 0, 64),
 			BackgroundTransparency = 1,
 			Parent = overlay,
 		})
@@ -1235,13 +1325,16 @@ __mods["core.Notification"] = function()
 		local surface = Creator.new("Frame", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = theme.colors.inverseSurface,
+			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Parent = container,
 		}, { BackgroundColor3 = "inverseSurface" })
+
 		Creator.new("UICorner", {
 			CornerRadius = theme.shape.snackbar,
 			Parent = surface,
 		})
+
 		Creator.new("UIStroke", {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = theme.colors.inverseOnSurface,
@@ -1280,9 +1373,8 @@ __mods["core.Notification"] = function()
 			Parent = surface,
 		}, { TextColor3 = "inverseOnSurface" })
 
-		local content = nil
 		if props.Content then
-			content = Creator.new("TextLabel", {
+			local content = Creator.new("TextLabel", {
 				AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.new(0, left, 0.5, 11),
 				Size = UDim2.new(1, -(left + 24), 0, 18),
@@ -1302,7 +1394,8 @@ __mods["core.Notification"] = function()
 			action = Creator.new("TextButton", {
 				AnchorPoint = Vector2.new(1, 0.5),
 				Position = UDim2.new(1, -12, 0.5, 0),
-				Size = UDim2.fromOffset(96, 36),
+				Size = UDim2.new(0, 0, 0, 36),
+				AutomaticSize = Enum.AutomaticSize.X,
 				BackgroundTransparency = 1,
 				AutoButtonColor = false,
 				Text = props.Action.Title or "OK",
@@ -1311,12 +1404,31 @@ __mods["core.Notification"] = function()
 				TextSize = theme.type.labelLarge.size,
 				Parent = surface,
 			}, { TextColor3 = "inversePrimary" })
-			action.MouseButton1Click:Connect(function()
-				if props.Action.Callback then
-					task.spawn(props.Action.Callback)
-				end
-				dismiss()
-			end)
+
+			Creator.new("UIPadding", {
+				PaddingLeft = UDim.new(0, 14),
+				PaddingRight = UDim.new(0, 14),
+				Parent = action,
+			})
+		end
+
+		local duration = props.Duration or 4
+		local timer = nil
+		if duration > 0 then
+			local bar = Creator.new("Frame", {
+				AnchorPoint = Vector2.new(0, 1),
+				Position = UDim2.new(0, 0, 1, 0),
+				Size = UDim2.new(1, 0, 0, 3),
+				BackgroundColor3 = theme.colors.inversePrimary,
+				BackgroundTransparency = 0.6,
+				BorderSizePixel = 0,
+				Parent = surface,
+			}, { BackgroundColor3 = "inversePrimary" })
+			Creator.new("UICorner", {
+				CornerRadius = UDim.new(1, 0),
+				Parent = bar,
+			})
+			timer = Motion.tween(bar, { Size = UDim2.new(0, 0, 0, 3) }, { time = duration, style = Enum.EasingStyle.Linear, direction = Enum.EasingDirection.Out })
 		end
 
 		local closed = false
@@ -1325,10 +1437,22 @@ __mods["core.Notification"] = function()
 				return
 			end
 			closed = true
-			Motion.tween(container, { Position = UDim2.new(0.5, 0, 1, 0) }, theme.motion.emphasizedAccelerate)
+			if timer then
+				timer:Cancel()
+			end
+			Motion.tween(container, { Position = UDim2.new(0.5, 0, 1, 20) }, theme.motion.emphasizedAccelerate)
 			Motion.tween(surface, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
 			task.delay(theme.motion.emphasizedAccelerate.time, function()
 				container:Destroy()
+			end)
+		end
+
+		if action then
+			action.MouseButton1Click:Connect(function()
+				if props.Action.Callback then
+					task.spawn(props.Action.Callback)
+				end
+				dismiss()
 			end)
 		end
 
@@ -1336,12 +1460,10 @@ __mods["core.Notification"] = function()
 		Motion.tween(container, { Position = UDim2.new(0.5, 0, 1, -24) }, theme.motion.emphasizedDecelerate)
 		Motion.tween(surface, { BackgroundTransparency = 0 }, theme.motion.emphasizedDecelerate)
 
-		local duration = props.Duration or 4
 		if duration > 0 then
 			task.delay(duration, dismiss)
 		end
 
-		QUEUE[#QUEUE + 1] = container
 		return {
 			Dismiss = dismiss,
 			Container = container,
@@ -1359,6 +1481,55 @@ __mods["core.Popup"] = function()
 
 	local Popup = {}
 
+	local function makeButton(parent, theme, spec, order)
+		local variant = spec.Variant or "text"
+		local button = Creator.new("TextButton", {
+			Size = UDim2.new(0, 0, 0, 40),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = variant == "filled" and theme.colors.primary or theme.colors.surfaceContainerHighest,
+			BackgroundTransparency = variant == "filled" and 0 or 0,
+			BorderSizePixel = 0,
+			AutoButtonColor = false,
+			Text = spec.Title or "",
+			Font = theme.fonts.bold,
+			TextColor3 = variant == "filled" and theme.colors.onPrimary or theme.colors.onSurface,
+			TextSize = theme.type.labelLarge.size,
+			LayoutOrder = order,
+			Parent = parent,
+		}, {
+			BackgroundColor3 = variant == "filled" and "primary" or "surfaceContainerHighest",
+			TextColor3 = variant == "filled" and "onPrimary" or "onSurface",
+		})
+
+		Creator.new("UICorner", {
+			CornerRadius = theme.shape.button,
+			Parent = button,
+		})
+
+		Creator.new("UIPadding", {
+			PaddingLeft = UDim.new(0, 22),
+			PaddingRight = UDim.new(0, 22),
+			Parent = button,
+		})
+
+		local hover = Creator.new("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = theme.colors.onSurface,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			Parent = button,
+		}, { BackgroundColor3 = "onSurface" })
+
+		button.MouseEnter:Connect(function()
+			Motion.tween(hover, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
+		end)
+		button.MouseLeave:Connect(function()
+			Motion.tween(hover, { BackgroundTransparency = 1 }, theme.motion.short)
+		end)
+
+		return button
+	end
+
 	function Popup.create(window, props)
 		props = props or {}
 		local theme = window.theme
@@ -1370,7 +1541,6 @@ __mods["core.Popup"] = function()
 			BackgroundColor3 = theme.colors.scrim,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			ZIndex = 100,
 			Parent = overlay,
 		}, { BackgroundColor3 = "scrim" })
 
@@ -1378,10 +1548,10 @@ __mods["core.Popup"] = function()
 			Name = "Dialog",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = props.Size or UDim2.fromOffset(360, 220),
+			Size = props.Size or UDim2.fromOffset(380, 240),
 			BackgroundColor3 = theme.colors.surfaceContainerHigh,
+			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			ZIndex = 101,
 			Parent = scrim,
 		}, { BackgroundColor3 = "surfaceContainerHigh" })
 
@@ -1390,10 +1560,10 @@ __mods["core.Popup"] = function()
 			Parent = dialog,
 		})
 
-		local layout = Creator.new("UIListLayout", {
-			Padding = UDim.new(0, 12),
+		local stack = Creator.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Vertical,
 			SortOrder = Enum.SortOrder.LayoutOrder,
-			HorizontalAlignment = Enum.HorizontalAlignment.Left,
+			Padding = UDim.new(0, 14),
 			Parent = dialog,
 		})
 
@@ -1408,38 +1578,35 @@ __mods["core.Popup"] = function()
 		local icon = nil
 		if props.Icon then
 			icon = Creator.new("ImageLabel", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 24, 0, 24),
 				Size = UDim2.fromOffset(24, 24),
 				BackgroundTransparency = 1,
 				Image = Icons.image(props.Icon) or "",
 				ImageColor3 = theme.colors.onSurfaceVariant,
 				ScaleType = Enum.ScaleType.Fit,
-				ZIndex = 102,
+				LayoutOrder = 1,
 				Parent = dialog,
 			}, { ImageColor3 = "onSurfaceVariant" })
-			icon.LayoutOrder = 1
 		end
 
 		local title = Creator.new("TextLabel", {
-			Position = UDim2.new(0, 24, 0, 24),
-			Size = UDim2.new(1, -48, 0, 28),
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
 			Font = theme.fonts.bold,
 			Text = props.Title or "",
 			TextColor3 = theme.colors.onSurface,
 			TextSize = theme.type.headlineSmall.size,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
 			TextWrapped = true,
-			ZIndex = 102,
+			LayoutOrder = 2,
 			Parent = dialog,
 		}, { TextColor3 = "onSurface" })
-		title.LayoutOrder = 2
 
 		local content = nil
 		if props.Content then
 			content = Creator.new("TextLabel", {
-				Size = UDim2.new(1, -48, 0, 0),
+				Size = UDim2.new(1, 0, 0, 0),
 				AutomaticSize = Enum.AutomaticSize.Y,
 				BackgroundTransparency = 1,
 				Font = theme.fonts.regular,
@@ -1449,19 +1616,17 @@ __mods["core.Popup"] = function()
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextYAlignment = Enum.TextYAlignment.Top,
 				TextWrapped = true,
-				ZIndex = 102,
+				LayoutOrder = 3,
 				Parent = dialog,
 			}, { TextColor3 = "onSurfaceVariant" })
-			content.LayoutOrder = 3
 		end
 
 		local actions = Creator.new("Frame", {
-			Size = UDim2.new(1, -48, 0, 40),
+			Size = UDim2.new(1, 0, 0, 40),
 			BackgroundTransparency = 1,
-			ZIndex = 102,
+			LayoutOrder = 4,
 			Parent = dialog,
 		})
-		actions.LayoutOrder = 4
 
 		Creator.new("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
@@ -1486,37 +1651,7 @@ __mods["core.Popup"] = function()
 
 		local buttonList = props.Buttons or { { Title = "OK" } }
 		for index, spec in ipairs(buttonList) do
-			local variant = spec.Variant or "text"
-			local button = Creator.new("TextButton", {
-				Size = UDim2.fromOffset(0, 40),
-				AutomaticSize = Enum.AutomaticSize.X,
-				BackgroundTransparency = 1,
-				AutoButtonColor = false,
-				Text = spec.Title or "OK",
-				Font = theme.fonts.bold,
-				TextColor3 = variant == "primary" and theme.colors.primary or theme.colors.onSurfaceVariant,
-				TextSize = theme.type.labelLarge.size,
-				LayoutOrder = index,
-				ZIndex = 102,
-				Parent = actions,
-			}, { TextColor3 = variant == "primary" and "primary" or "onSurfaceVariant" })
-
-			Creator.new("UIPadding", {
-				PaddingLeft = UDim.new(0, 16),
-				PaddingRight = UDim.new(0, 16),
-				Parent = button,
-			})
-
-			if variant == "filled" then
-				Creator.new("UIStroke", {
-					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-					Color = theme.colors.outlineVariant,
-					Transparency = 0,
-					Thickness = 1,
-					Parent = button,
-				}, { Color = "outlineVariant" })
-			end
-
+			local button = makeButton(actions, theme, spec, index)
 			button.MouseButton1Click:Connect(function()
 				if spec.Callback then
 					task.spawn(spec.Callback)
@@ -1533,7 +1668,7 @@ __mods["core.Popup"] = function()
 			end
 		end)
 
-		Motion.tween(scrim, { BackgroundTransparency = 0.55 }, theme.motion.emphasizedDecelerate)
+		Motion.tween(scrim, { BackgroundTransparency = 0.6 }, theme.motion.emphasizedDecelerate)
 		Motion.tween(dialog, { BackgroundTransparency = 0 }, theme.motion.emphasizedDecelerate)
 
 		return {
@@ -1638,15 +1773,23 @@ __mods["core.Section"] = function()
 		local main = Creator.new("Frame", {
 			Name = "Section",
 			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, 0),
-			AutomaticSize = Enum.AutomaticSize.Y,
+			Size = UDim2.new(1, 0, 0, 40),
+			AutomaticSize = Enum.AutomaticSize.None,
 			BackgroundTransparency = 1,
+			Parent = parentFrame,
 		})
 		self.main = main
-		main.Parent = parentFrame
+
+		local stack = Creator.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Vertical,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 0),
+			Parent = main,
+		})
 
 		local header = Creator.new("TextButton", {
 			Name = "Header",
+			LayoutOrder = 1,
 			Size = UDim2.new(1, 0, 0, 40),
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
@@ -1664,10 +1807,14 @@ __mods["core.Section"] = function()
 		}, { BackgroundColor3 = "onSurface" })
 		self.state = state
 
-		local icon = nil
+		Creator.new("UICorner", {
+			CornerRadius = theme.shape.element,
+			Parent = header,
+		})
+
 		local left = 16
 		if props.Icon then
-			icon = Creator.new("ImageLabel", {
+			local icon = Creator.new("ImageLabel", {
 				AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.new(0, 16, 0.5, 0),
 				Size = UDim2.fromOffset(20, 20),
@@ -1684,12 +1831,12 @@ __mods["core.Section"] = function()
 		local title = Creator.new("TextLabel", {
 			AnchorPoint = Vector2.new(0, 0.5),
 			Position = UDim2.new(0, left, 0.5, 0),
-			Size = UDim2.new(1, -(left + 40), 1, 0),
+			Size = UDim2.new(1, -(left + 44), 1, 0),
 			BackgroundTransparency = 1,
-			Font = self.window.theme.fonts.bold,
+			Font = theme.fonts.bold,
 			Text = props.Title or "",
 			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.titleSmall.size,
+			TextSize = theme.type.titleMedium.size,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			Parent = header,
@@ -1710,6 +1857,7 @@ __mods["core.Section"] = function()
 
 		local content = Creator.new("Frame", {
 			Name = "Content",
+			LayoutOrder = 2,
 			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
@@ -1725,7 +1873,7 @@ __mods["core.Section"] = function()
 		})
 
 		Creator.new("UIPadding", {
-			PaddingBottom = UDim.new(0, 6),
+			PaddingBottom = UDim.new(0, 4),
 			Parent = content,
 		})
 
@@ -1737,44 +1885,92 @@ __mods["core.Section"] = function()
 			Parent = content,
 		}, { Color = "outlineVariant" })
 
-		local corner = Creator.new("UICorner", {
+		Creator.new("UICorner", {
 			CornerRadius = theme.shape.element,
 			Parent = content,
 		})
-		self.corner = corner
 
 		self:_wire()
+		self.chevron.Rotation = self.expanded and 0 or -90
 		if self.expanded then
 			self:flush()
 		end
+		task.defer(function()
+			if self.main and self.main.Parent then
+				self:_applyHeight(false)
+			end
+		end)
 	end
 
 	function Section:_wire()
-		local function toggle()
+		local theme = self.window.theme
+
+		self.header.MouseButton1Click:Connect(function()
 			self:setExpanded(not self.expanded)
-		end
-		self.header.MouseButton1Click:Connect(toggle)
+		end)
+
+		self.header.MouseEnter:Connect(function()
+			Motion.tween(self.state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
+		end)
+
+		self.header.MouseLeave:Connect(function()
+			Motion.tween(self.state, { BackgroundTransparency = 1 }, theme.motion.short)
+		end)
+
 		self.header.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				Motion.tween(self.state, { BackgroundTransparency = 1 - self.window.theme.state.pressed }, self.window.theme.motion.short4)
+				Motion.tween(self.state, { BackgroundTransparency = 1 - theme.state.pressed }, theme.motion.short4)
 			end
 		end)
+
 		self.header.InputEnded:Connect(function()
-			Motion.tween(self.state, { BackgroundTransparency = 1 }, self.window.theme.motion.short4)
+			Motion.tween(self.state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short4)
 		end)
 	end
 
 	function Section:setExpanded(expanded)
 		local theme = self.window.theme
-		self.expanded = expanded
-		self.contentFrame.Visible = expanded
-		if expanded then
-			self:flush()
-			Motion.tween(self.chevron, { Rotation = 0 }, theme.motion.short)
-		else
-			Motion.tween(self.chevron, { Rotation = -90 }, theme.motion.short)
+		if expanded == self.expanded then
+			return
 		end
+		self.expanded = expanded
+
+		if expanded then
+			self.contentFrame.Visible = true
+			self:flush()
+			task.defer(function()
+				self:_applyHeight(true)
+			end)
+		else
+			self:_applyHeight(false)
+		end
+
+		Motion.tween(self.chevron, { Rotation = expanded and 0 or -90 }, theme.motion.emphasized)
 		self.chevron.Rotation = expanded and 0 or -90
+	end
+
+	function Section:_applyHeight(animate)
+		local theme = self.window.theme
+		local headerHeight = 40
+		local contentHeight = self.contentFrame.AbsoluteSize.Y
+		local target = self.expanded and (headerHeight + contentHeight) or headerHeight
+
+		if not animate then
+			self.main.Size = UDim2.new(1, 0, 0, target)
+			if not self.expanded then
+				self.contentFrame.Visible = false
+			end
+			return
+		end
+
+		Motion.tween(self.main, { Size = UDim2.new(1, 0, 0, target) }, theme.motion.emphasized)
+		if not self.expanded then
+			task.delay(theme.motion.emphasized.time, function()
+				if not self.expanded then
+					self.contentFrame.Visible = false
+				end
+			end)
+		end
 	end
 
 	function Section:toggle()
@@ -1787,6 +1983,18 @@ __mods["core.Section"] = function()
 
 	function Section:reset()
 		Container.reset(self)
+	end
+
+	function Section:_refreshTheme()
+		if not self.main then
+			return
+		end
+		local theme = self.window.theme
+		self.title.TextColor3 = theme.colors.onSurface
+		if self.icon then
+			self.icon.ImageColor3 = theme.colors.onSurfaceVariant
+		end
+		self.chevron.ImageColor3 = theme.colors.onSurfaceVariant
 	end
 
 	function Section:_destroy()
@@ -2386,16 +2594,102 @@ __mods["core.Window"] = function()
 		self:_buildTopbar()
 		self:_buildNavigation()
 		self:_buildPages()
+		self:_enableDrag()
 
 		self.config = self.configManager:create(props.ConfigName or "config", props.AutoSave ~= false)
 
+		if props.AutoSave ~= false then
+			task.defer(function()
+				if self.unloaded then
+					return
+				end
+				self.config:load()
+				self:_restoreSettings()
+			end)
+		end
+
 		return self
+	end
+
+	function Window:_storeSettings()
+		local seed = self.theme.seed
+		self.config.custom.theme = {
+			name = self.theme.name,
+			mode = self.theme.mode,
+			seed = { r = seed.R, g = seed.G, b = seed.B },
+		}
+		self.config.custom.language = self.locale.current
+		self.config.custom.layout = self.layout
+	end
+
+	function Window:_restoreSettings()
+		local custom = self.config.custom
+		local theme = custom.theme
+		if type(theme) == "table" then
+			local seed = theme.seed
+			self:setTheme({
+				name = theme.name or self.theme.name,
+				mode = theme.mode or self.theme.mode,
+				seed = type(seed) == "table" and Color3.new(seed.r, seed.g, seed.b) or self.theme.seed,
+			})
+		end
+		if type(custom.language) == "string" and custom.language ~= self.locale.current then
+			self:setLanguage(custom.language)
+		end
+		if type(custom.layout) == "string" and custom.layout ~= self.layout then
+			self:setLayout(custom.layout)
+		end
 	end
 
 	function Window:_connect(signal, callback)
 		local connection = signal:Connect(callback)
 		table.insert(self.connections, connection)
 		return connection
+	end
+
+	function Window:_enableDrag()
+		local dragging = false
+		local offset = Vector2.new(0, 0)
+
+		self.topbar.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+			if self.minimised then
+				return
+			end
+			local actions = self.actions
+			if actions and actions.AbsoluteSize.X > 0 then
+				local rect = actions.AbsolutePosition
+				if input.Position.X >= rect.X and input.Position.X <= rect.X + actions.AbsoluteSize.X then
+					return
+				end
+			end
+			dragging = true
+			local root = self.root
+			offset = Vector2.new(
+				input.Position.X - root.AbsolutePosition.X,
+				input.Position.Y - root.AbsolutePosition.Y
+			)
+		end)
+
+		self:_connect(Variables.services.UserInputService.InputChanged, function(input)
+			if not dragging then
+				return
+			end
+			if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+			local root = self.root
+			local size = root.AbsoluteSize
+			local x = input.Position.X - offset.X + size.X / 2
+			local y = input.Position.Y - offset.Y + size.Y / 2
+			root.Position = UDim2.fromOffset(x, y)
+		end)
+
+		self:_connect(Variables.services.UserInputService.InputEnded, function()
+			dragging = false
+		end)
 	end
 
 	function Window:_buildScreen()
@@ -2547,11 +2841,13 @@ __mods["core.Window"] = function()
 			Parent = actions,
 		})
 
-		self:_createAction("minimize", "minus", function()
+		local minimiseButton, minimiseIcon = self:_createAction("minimize", "minus", function()
 			self:toggleMinimise()
 		end)
+		self.minimiseButton = minimiseButton
+		self.minimiseIcon = minimiseIcon
 		self:_createAction("close", "x", function()
-			self:hide()
+			self:close()
 		end)
 	end
 
@@ -2596,7 +2892,7 @@ __mods["core.Window"] = function()
 			Motion.tween(icon, { ImageColor3 = theme.colors.onSurfaceVariant }, theme.motion.short4)
 		end)
 		button.MouseButton1Click:Connect(callback)
-		return button
+		return button, icon
 	end
 
 	function Window:_buildNavigation()
@@ -2811,6 +3107,8 @@ __mods["core.Window"] = function()
 		if current then
 			self:selectTab(current, true)
 		end
+		self:_storeSettings()
+		self:_persist(self)
 	end
 
 	function Window:navigate(name)
@@ -2846,6 +3144,8 @@ __mods["core.Window"] = function()
 			self.selectedTab:_applySelected()
 		end
 		self:_refreshElementThemes()
+		self:_storeSettings()
+		self:_persist(self)
 	end
 
 	function Window:setAccent(color)
@@ -2874,6 +3174,8 @@ __mods["core.Window"] = function()
 
 	function Window:setLanguage(language)
 		self.locale:setLanguage(language)
+		self:_storeSettings()
+		self:_persist(self)
 	end
 
 	function Window:show()
@@ -2925,12 +3227,49 @@ __mods["core.Window"] = function()
 	end
 
 	function Window:toggleMinimise()
-		self.minimised = not self.minimised
-		local target = self.size
-		if self.minimised then
-			Motion.tween(self.root, { Size = UDim2.new(target.X.Scale, target.X.Offset, 0, TOPBAR_HEIGHT) }, self.theme.motion.short)
+		local theme = self.theme
+		if not self.minimised then
+			self.minimised = true
+			self._restoreSize = self.root.Size
+			self._restorePosition = self.root.Position
+
+			self.nav.Visible = false
+			self.pages.Visible = false
+			if self.topDivider then
+				self.topDivider.Visible = false
+			end
+			if self.navDivider then
+				self.navDivider.Visible = false
+			end
+			if self.subtitleLabel then
+				self.subtitleLabel.Visible = false
+			end
+			self.minimiseIcon.Image = Icons.image("chevron-up") or ""
+
+			local screen = self.screen.AbsoluteSize
+			local width = math.min(320, math.max(200, screen.X - 40))
+			Motion.tween(self.root, {
+				Size = UDim2.fromOffset(width, 52),
+				Position = UDim2.fromOffset(screen.X / 2, 44),
+			}, theme.motion.emphasizedDecelerate)
 		else
-			Motion.tween(self.root, { Size = target }, self.theme.motion.short)
+			self.minimised = false
+			self.nav.Visible = true
+			self.pages.Visible = true
+			if self.topDivider then
+				self.topDivider.Visible = true
+			end
+			if self.navDivider then
+				self.navDivider.Visible = true
+			end
+			if self.subtitleLabel then
+				self.subtitleLabel.Visible = true
+			end
+			self.minimiseIcon.Image = Icons.image("minus") or ""
+			Motion.tween(self.root, {
+				Size = self._restoreSize or self.size,
+				Position = self._restorePosition or UDim2.fromScale(0.5, 0.5),
+			}, theme.motion.emphasizedDecelerate)
 		end
 	end
 
@@ -2947,7 +3286,7 @@ __mods["core.Window"] = function()
 	end
 
 	function Window:_persist(element)
-		if not element.flag then
+		if element ~= self and not element.flag then
 			return
 		end
 		if self.props.AutoSave == false then
@@ -2978,6 +3317,23 @@ __mods["core.Window"] = function()
 
 	function Window:deleteConfig(name)
 		return self.configManager:delete(name)
+	end
+
+	function Window:close()
+		if self.unloaded or self.closing then
+			return
+		end
+		self.closing = true
+		self.animating = true
+		local theme = self.theme
+		local target = self.root.Size
+		Motion.tween(self.surface, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+		Motion.tween(self.root, {
+			Size = UDim2.new(target.X.Scale * 0.94, target.X.Offset, target.Y.Scale * 0.94, target.Y.Offset),
+		}, theme.motion.emphasizedAccelerate)
+		task.delay(theme.motion.emphasizedAccelerate.time, function()
+			self:unload()
+		end)
 	end
 
 	function Window:unload()
@@ -3223,7 +3579,7 @@ __mods["elements.Button"] = function()
 			if iconName then
 				local icon = Creator.new("ImageLabel", {
 					AnchorPoint = Vector2.new(0, 0.5),
-					Position = align == "Right" and UDim2.new(1, -size.pad, 0.5, 0) or UDim2.new(0, size.pad - iconSize - 8, 0.5, 0),
+					Position = align == "Right" and UDim2.new(1, -size.pad - iconSize, 0.5, 0) or UDim2.new(0, size.pad, 0.5, 0),
 					Size = UDim2.fromOffset(iconSize, iconSize),
 					BackgroundTransparency = 1,
 					Image = Icons.image(iconName) or "",
@@ -3236,8 +3592,8 @@ __mods["elements.Button"] = function()
 					text.Position = UDim2.new(0, size.pad, 0.5, 0)
 					text.Size = UDim2.new(1, -(size.pad * 2 + iconSize + 8), 1, 0)
 				else
-					text.Position = UDim2.new(0, size.pad + iconSize + 8, 0.5, 0)
-					text.Size = UDim2.new(1, -(size.pad * 2 + iconSize + 8), 1, 0)
+					text.Position = UDim2.new(0, size.pad + iconSize + 10, 0.5, 0)
+					text.Size = UDim2.new(1, -(size.pad * 2 + iconSize + 10), 1, 0)
 				end
 			end
 
@@ -3596,22 +3952,29 @@ __mods["elements.ChipGroup"] = function()
 
 			local inner = Creator.new("Frame", {
 				Size = UDim2.new(1, 0, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
 				BackgroundTransparency = 1,
 				Parent = main,
 			})
 			inner.LayoutOrder = 3
 			self.inner = inner
 
+			Creator.new("UIListLayout", {
+				FillDirection = Enum.FillDirection.Horizontal,
+				Wraps = true,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				Padding = UDim.new(0, 8),
+				HorizontalAlignment = Enum.HorizontalAlignment.Left,
+				VerticalAlignment = Enum.VerticalAlignment.Top,
+				Parent = inner,
+			})
+
 			self.chips = {}
 			for index, option in ipairs(self.options) do
 				self:_buildChip(option, index)
 			end
 
-			Element.connect(self, inner:GetPropertyChangedSignal("AbsoluteSize"), function()
-				self:_relayout()
-			end)
-
-			self:_relayout()
+			self:_renderSelection()
 		end
 
 		function handle:_buildChip(option, index)
@@ -3633,7 +3996,6 @@ __mods["elements.ChipGroup"] = function()
 				BackgroundColor3 = variant.fill,
 				BackgroundTransparency = variant.fill == "surface" and 1 or 0,
 			})
-
 			Creator.new("UICorner", {
 				CornerRadius = theme.shape.chip,
 				Parent = chip,
@@ -3664,10 +4026,25 @@ __mods["elements.ChipGroup"] = function()
 				iconName = option.Icon
 			end
 
+			local row = Creator.new("Frame", {
+				Name = "Row",
+				Size = UDim2.new(0, 0, 1, 0),
+				AutomaticSize = Enum.AutomaticSize.X,
+				BackgroundTransparency = 1,
+				Parent = chip,
+			})
+
+			Creator.new("UIListLayout", {
+				FillDirection = Enum.FillDirection.Horizontal,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				Padding = UDim.new(0, 6),
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Parent = row,
+			})
+
 			local label = Creator.new("TextLabel", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, iconName and 32 or 12, 0.5, 0),
-				Size = UDim2.new(1, iconName and -44 or -24, 1, 0),
+				Size = UDim2.new(0, 0, 0, 18),
+				AutomaticSize = Enum.AutomaticSize.X,
 				BackgroundTransparency = 1,
 				Font = theme.fonts.bold,
 				Text = text,
@@ -3675,19 +4052,18 @@ __mods["elements.ChipGroup"] = function()
 				TextSize = theme.type.labelLarge.size,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextTruncate = Enum.TextTruncate.AtEnd,
-				Parent = chip,
+				Parent = row,
 			}, { TextColor3 = variant.text })
 
 			if iconName then
 				local icon = Creator.new("ImageLabel", {
-					AnchorPoint = Vector2.new(0, 0.5),
-					Position = UDim2.new(0, 12, 0.5, 0),
 					Size = UDim2.fromOffset(16, 16),
 					BackgroundTransparency = 1,
 					Image = Icons.image(iconName) or "",
 					ImageColor3 = theme.colors[variant.text],
 					ScaleType = Enum.ScaleType.Fit,
-					Parent = chip,
+					LayoutOrder = 0,
+					Parent = row,
 				}, { ImageColor3 = variant.text })
 				self.chipIcon = icon
 			end
@@ -3695,15 +4071,14 @@ __mods["elements.ChipGroup"] = function()
 			local check = nil
 			if self.multi or self.props.Variant == "filter" then
 				check = Creator.new("ImageLabel", {
-					AnchorPoint = Vector2.new(0, 0.5),
-					Position = UDim2.new(1, -12, 0.5, 0),
 					Size = UDim2.fromOffset(16, 16),
 					BackgroundTransparency = 1,
 					Image = Icons.image("check") or "",
 					ImageColor3 = theme.colors.primary,
 					ImageTransparency = 1,
 					ScaleType = Enum.ScaleType.Fit,
-					Parent = chip,
+					LayoutOrder = 2,
+					Parent = row,
 				}, { ImageColor3 = "primary" })
 			end
 
@@ -3780,33 +4155,6 @@ __mods["elements.ChipGroup"] = function()
 					end
 				end
 			end
-		end
-
-		function handle:_relayout()
-			if not self.inner then
-				return
-			end
-			local width = self.inner.AbsoluteSize.X
-			if width <= 0 then
-				return
-			end
-			local gap = 8
-			local x = 0
-			local y = 0
-			for _, data in ipairs(self.chips) do
-				local chipWidth = data.chip.AbsoluteSize.X
-				if chipWidth <= 0 then
-					chipWidth = 80
-				end
-				if x > 0 and x + chipWidth > width then
-					x = 0
-					y = y + CHIP_HEIGHT + gap
-				end
-				data.chip.Position = UDim2.fromOffset(x, y)
-				data.chip.ZIndex = 1
-				x = x + chipWidth + gap
-			end
-			self.inner.Size = UDim2.new(1, 0, 0, y + CHIP_HEIGHT)
 		end
 
 		function handle:Set(value, skipCallback)
@@ -4120,6 +4468,7 @@ __mods["elements.ColorPicker"] = function()
 	local Creator = __require("core.Creator")
 	local Motion = __require("core.Motion")
 	local Variables = __require("core.Variables")
+	local Icons = __require("icons.Init")
 
 	local ColorPicker = {}
 
@@ -4259,6 +4608,21 @@ __mods["elements.ColorPicker"] = function()
 				Parent = swatch,
 			}, { Color = "outlineVariant" })
 
+			local hover = Creator.new("Frame", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = theme.colors.onSurface,
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				Parent = swatch,
+			}, { BackgroundColor3 = "onSurface" })
+			self.state = hover
+
+			Element.connect(self, swatch.MouseEnter, function()
+				Motion.tween(hover, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
+			end)
+			Element.connect(self, swatch.MouseLeave, function()
+				Motion.tween(hover, { BackgroundTransparency = 1 }, theme.motion.short)
+			end)
 			Element.connect(self, swatch.MouseButton1Click, function()
 				if self.locked then
 					return
@@ -4296,8 +4660,9 @@ __mods["elements.ColorPicker"] = function()
 			local dialog = Creator.new("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.5, 0.5),
-				Size = UDim2.fromOffset(300, 344),
+				Size = UDim2.fromOffset(324, 400),
 				BackgroundColor3 = theme.colors.surfaceContainerHigh,
+				BackgroundTransparency = 1,
 				BorderSizePixel = 0,
 				Parent = scrim,
 			}, { BackgroundColor3 = "surfaceContainerHigh" })
@@ -4308,11 +4673,13 @@ __mods["elements.ColorPicker"] = function()
 				Parent = dialog,
 			})
 
-			local layout = Creator.new("UIListLayout", {
-				Padding = UDim.new(0, 12),
+			local stack = Creator.new("UIListLayout", {
+				FillDirection = Enum.FillDirection.Vertical,
 				SortOrder = Enum.SortOrder.LayoutOrder,
+				Padding = UDim.new(0, 12),
 				Parent = dialog,
 			})
+
 			Creator.new("UIPadding", {
 				PaddingTop = UDim.new(0, 20),
 				PaddingBottom = UDim.new(0, 20),
@@ -4322,29 +4689,68 @@ __mods["elements.ColorPicker"] = function()
 			})
 
 			local heading = Creator.new("TextLabel", {
-				Size = UDim2.new(1, 0, 0, 24),
+				Size = UDim2.new(1, 0, 0, 26),
 				BackgroundTransparency = 1,
 				Font = theme.fonts.bold,
-				Text = props.Title or "Color",
+				Text = props.Title or "Colour",
 				TextColor3 = theme.colors.onSurface,
-				TextSize = theme.type.titleMedium.size,
+				TextSize = theme.type.titleLarge.size,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Parent = dialog,
 			}, { TextColor3 = "onSurface" })
 			heading.LayoutOrder = 1
+
+			local previewRow = Creator.new("Frame", {
+				Size = UDim2.new(1, 0, 0, 56),
+				BackgroundTransparency = 1,
+				Parent = dialog,
+			})
+			previewRow.LayoutOrder = 2
+
+			local preview = Creator.new("Frame", {
+				Size = UDim2.fromOffset(56, 56),
+				BackgroundColor3 = self.value,
+				BorderSizePixel = 0,
+				Parent = previewRow,
+			}, { BackgroundColor3 = "surface" })
+			Creator.new("UICorner", {
+				CornerRadius = UDim.new(0, 12),
+				Parent = preview,
+			})
+			Creator.new("UIStroke", {
+				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+				Color = theme.colors.outlineVariant,
+				Transparency = 0,
+				Thickness = 1,
+				Parent = preview,
+			}, { Color = "outlineVariant" })
+			self.preview = preview
+
+			local previewText = Creator.new("TextLabel", {
+				Position = UDim2.new(0, 72, 0, 4),
+				Size = UDim2.new(1, -72, 0, 20),
+				BackgroundTransparency = 1,
+				Font = theme.fonts.mono,
+				Text = "",
+				TextColor3 = theme.colors.onSurface,
+				TextSize = theme.type.bodyMedium.size,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Parent = previewRow,
+			}, { TextColor3 = "onSurface" })
+			self.previewText = previewText
 
 			local plane = Creator.new("Frame", {
 				Size = UDim2.new(1, 0, 0, 150),
 				BackgroundColor3 = Color3.new(1, 1, 1),
 				BorderSizePixel = 0,
 				Parent = dialog,
-			})
-			plane.LayoutOrder = 2
+			}, { BackgroundColor3 = "surface" })
+			plane.LayoutOrder = 3
 			self.plane = plane
 
-			Creator.new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = plane })
+			Creator.new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = plane })
 
-			local valueGradient = Creator.new("UIGradient", {
+			Creator.new("UIGradient", {
 				Rotation = 90,
 				Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(0, 0, 0)),
 				Parent = plane,
@@ -4356,7 +4762,7 @@ __mods["elements.ColorPicker"] = function()
 				BorderSizePixel = 0,
 				Parent = plane,
 			})
-			Creator.new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = sat })
+			Creator.new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = sat })
 			Creator.new("UIGradient", {
 				Rotation = 0,
 				Color = ColorSequence.new(Color3.new(1, 1, 1)),
@@ -4370,7 +4776,7 @@ __mods["elements.ColorPicker"] = function()
 
 			local cursor = Creator.new("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
-				Size = UDim2.fromOffset(14, 14),
+				Size = UDim2.fromOffset(18, 18),
 				BackgroundColor3 = Color3.new(1, 1, 1),
 				BorderSizePixel = 0,
 				Parent = plane,
@@ -4379,8 +4785,8 @@ __mods["elements.ColorPicker"] = function()
 			Creator.new("UIStroke", {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				Color = Color3.new(0, 0, 0),
-				Transparency = 0,
-				Thickness = 2,
+				Transparency = 0.15,
+				Thickness = 3,
 				Parent = cursor,
 			})
 			self.cursor = cursor
@@ -4390,8 +4796,8 @@ __mods["elements.ColorPicker"] = function()
 				BackgroundColor3 = Color3.new(1, 1, 1),
 				BorderSizePixel = 0,
 				Parent = dialog,
-			})
-			hueTrack.LayoutOrder = 3
+			}, { BackgroundColor3 = "surface" })
+			hueTrack.LayoutOrder = 4
 			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = hueTrack })
 			Creator.new("UIGradient", {
 				Color = hueGradient(),
@@ -4409,7 +4815,7 @@ __mods["elements.ColorPicker"] = function()
 			Creator.new("UIStroke", {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				Color = Color3.new(0, 0, 0),
-				Transparency = 0,
+				Transparency = 0.2,
 				Thickness = 2,
 				Parent = hueCursor,
 			})
@@ -4423,8 +4829,8 @@ __mods["elements.ColorPicker"] = function()
 					BackgroundColor3 = self.value,
 					BorderSizePixel = 0,
 					Parent = dialog,
-				})
-				alphaTrack.LayoutOrder = 4
+				}, { BackgroundColor3 = "surface" })
+				alphaTrack.LayoutOrder = 5
 				Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = alphaTrack })
 				Creator.new("UIGradient", {
 					Rotation = 0,
@@ -4446,14 +4852,14 @@ __mods["elements.ColorPicker"] = function()
 				Creator.new("UIStroke", {
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 					Color = Color3.new(0, 0, 0),
-					Transparency = 0,
+					Transparency = 0.2,
 					Thickness = 2,
 					Parent = alphaCursor,
 				})
 			end
 
 			local hexBox = Creator.new("TextBox", {
-				Size = UDim2.new(1, 0, 0, 40),
+				Size = UDim2.new(1, 0, 0, 44),
 				BackgroundColor3 = theme.colors.surfaceContainerHighest,
 				BorderSizePixel = 0,
 				Text = "",
@@ -4465,33 +4871,40 @@ __mods["elements.ColorPicker"] = function()
 				ClearTextOnFocus = false,
 				Parent = dialog,
 			}, { BackgroundColor3 = "surfaceContainerHighest" })
-			hexBox.LayoutOrder = 5
+			hexBox.LayoutOrder = 6
 			Creator.new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = hexBox })
 			Creator.new("UIPadding", {
 				PaddingLeft = UDim.new(0, 12),
 				PaddingRight = UDim.new(0, 12),
 				Parent = hexBox,
 			})
+			self.hexBox = hexBox
 
 			local actions = Creator.new("Frame", {
 				Size = UDim2.new(1, 0, 0, 40),
 				BackgroundTransparency = 1,
 				Parent = dialog,
 			})
-			actions.LayoutOrder = 6
+			actions.LayoutOrder = 7
 			Creator.new("UIListLayout", {
 				FillDirection = Enum.FillDirection.Horizontal,
 				HorizontalAlignment = Enum.HorizontalAlignment.Right,
 				Padding = UDim.new(0, 8),
+				SortOrder = Enum.SortOrder.LayoutOrder,
 				Parent = actions,
 			})
 
 			local state = { h = 0, s = 0, v = 1, a = self.alpha }
+			local dragging = nil
+			local moveConnection = nil
+			local endConnection = nil
 
 			local function applyColor()
 				self.value = hsvToRgb(state.h, state.s, state.v)
 				self.alpha = state.a
 				self:_render()
+				preview.BackgroundColor3 = self.value
+				previewText.Text = string.format("%s  %d%%", self.value:ToHex(), math.floor(state.a * 100))
 				if alphaTrack then
 					alphaTrack.BackgroundColor3 = self.value
 				end
@@ -4527,50 +4940,61 @@ __mods["elements.ColorPicker"] = function()
 				applyColor()
 			end
 
-			local dragging = nil
-			local function onChanged(input)
-				if not dragging then
-					return
+			local function stopDrag()
+				dragging = nil
+				if moveConnection then
+					moveConnection:Disconnect()
+					moveConnection = nil
 				end
-				if dragging == "plane" then
-					updateFromPlane(input.Position)
-				elseif dragging == "hue" then
-					updateFromHue(input.Position)
-				elseif dragging == "alpha" then
-					updateFromAlpha(input.Position)
+				if endConnection then
+					endConnection:Disconnect()
+					endConnection = nil
 				end
 			end
 
-			local function beginDrag(target, kind)
+			local function beginDrag(kind)
 				dragging = kind
-				local function move(input)
-					onChanged(input)
+				if moveConnection then
+					moveConnection:Disconnect()
 				end
-				local function endDrag(input)
-					dragging = nil
-					moveConn:Disconnect()
-					endConn:Disconnect()
+				if endConnection then
+					endConnection:Disconnect()
 				end
-				local moveConn = Variables.services.UserInputService.InputChanged:Connect(move)
-				local endConn = Variables.services.UserInputService.InputEnded:Connect(endDrag)
+				moveConnection = Variables.services.UserInputService.InputChanged:Connect(function(changed)
+					if dragging ~= kind then
+						return
+					end
+					if changed.UserInputType == Enum.UserInputType.MouseMovement or changed.UserInputType == Enum.UserInputType.Touch then
+						if kind == "plane" then
+							updateFromPlane(changed.Position)
+						elseif kind == "hue" then
+							updateFromHue(changed.Position)
+						elseif kind == "alpha" then
+							updateFromAlpha(changed.Position)
+						end
+					end
+				end)
+				endConnection = Variables.services.UserInputService.InputEnded:Connect(function()
+					stopDrag()
+				end)
 			end
 
 			plane.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					beginDrag(plane, "plane")
+					beginDrag("plane")
 					updateFromPlane(input.Position)
 				end
 			end)
 			hueTrack.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					beginDrag(hueTrack, "hue")
+					beginDrag("hue")
 					updateFromHue(input.Position)
 				end
 			end)
 			if alphaTrack then
 				alphaTrack.InputBegan:Connect(function(input)
 					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-						beginDrag(alphaTrack, "alpha")
+						beginDrag("alpha")
 						updateFromAlpha(input.Position)
 					end
 				end)
@@ -4593,20 +5017,29 @@ __mods["elements.ColorPicker"] = function()
 
 			local function makeButton(text, order, primary)
 				local button = Creator.new("TextButton", {
-					Size = UDim2.fromOffset(0, 40),
+					Size = UDim2.new(0, 0, 0, 40),
 					AutomaticSize = Enum.AutomaticSize.X,
-					BackgroundTransparency = 1,
+					BackgroundColor3 = primary and theme.colors.primary or theme.colors.surfaceContainerHighest,
+					BackgroundTransparency = primary and 0 or 0,
+					BorderSizePixel = 0,
 					AutoButtonColor = false,
 					Text = text,
 					Font = theme.fonts.bold,
-					TextColor3 = primary and theme.colors.primary or theme.colors.onSurfaceVariant,
+					TextColor3 = primary and theme.colors.onPrimary or theme.colors.onSurface,
 					TextSize = theme.type.labelLarge.size,
 					LayoutOrder = order,
 					Parent = actions,
-				}, { TextColor3 = primary and "primary" or "onSurfaceVariant" })
+				}, {
+					BackgroundColor3 = primary and "primary" or "surfaceContainerHighest",
+					TextColor3 = primary and "onPrimary" or "onSurface",
+				})
+				Creator.new("UICorner", {
+					CornerRadius = theme.shape.button,
+					Parent = button,
+				})
 				Creator.new("UIPadding", {
-					PaddingLeft = UDim.new(0, 16),
-					PaddingRight = UDim.new(0, 16),
+					PaddingLeft = UDim.new(0, 20),
+					PaddingRight = UDim.new(0, 20),
 					Parent = button,
 				})
 				return button
@@ -4616,9 +5049,11 @@ __mods["elements.ColorPicker"] = function()
 			local apply = makeButton("Apply", 2, true)
 
 			local function close()
+				stopDrag()
 				self.dialog = nil
-				Motion.tween(scrim, { BackgroundTransparency = 1 }, theme.motion.short4)
-				task.delay(theme.motion.short4.time, function()
+				Motion.tween(scrim, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+				Motion.tween(dialog, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+				task.delay(theme.motion.emphasizedAccelerate.time, function()
 					scrim:Destroy()
 				end)
 			end
@@ -4639,23 +5074,19 @@ __mods["elements.ColorPicker"] = function()
 			sat.BackgroundColor3 = hsvToRgb(state.h, 1, 1)
 			applyColor()
 
-			local function placeCursor()
+			local function placeCursors()
 				cursor.Position = UDim2.new(state.s, 0, 1 - state.v, 0)
 				hueCursor.Position = UDim2.new(state.h, 0, 0.5, 0)
 				if alphaCursor then
 					alphaCursor.Position = UDim2.new(state.a, 0, 0.5, 0)
 				end
 			end
-			placeCursor()
-			local connections = {}
-			connections[#connections + 1] = plane:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-				placeCursor()
-			end)
-			connections[#connections + 1] = hueTrack:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-				placeCursor()
-			end)
+			placeCursors()
+			Element.connect(self, plane:GetPropertyChangedSignal("AbsoluteSize"), placeCursors)
+			Element.connect(self, hueTrack:GetPropertyChangedSignal("AbsoluteSize"), placeCursors)
 
-			Motion.tween(scrim, { BackgroundTransparency = 0.55 }, theme.motion.emphasizedDecelerate)
+			Motion.tween(scrim, { BackgroundTransparency = 0.6 }, theme.motion.emphasizedDecelerate)
+			Motion.tween(dialog, { BackgroundTransparency = 0 }, theme.motion.emphasizedDecelerate)
 		end
 
 		function handle:Set(color, alpha, skipCallback)
@@ -5091,10 +5522,10 @@ __mods["elements.Dropdown"] = function()
 			end
 
 			Element.connect(self, trigger.MouseEnter, function()
-				Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short4)
+				Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
 			end)
 			Element.connect(self, trigger.MouseLeave, function()
-				Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short4)
+				Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short)
 			end)
 			Element.connect(self, trigger.MouseButton1Click, function()
 				if self.locked then
@@ -5106,6 +5537,8 @@ __mods["elements.Dropdown"] = function()
 					self:open()
 				end
 			end)
+
+			Motion.tween(self.chevron, { Rotation = 0 }, theme.motion.standard)
 
 			self:_updateDisplay()
 		end
@@ -5208,10 +5641,12 @@ __mods["elements.Dropdown"] = function()
 				flip = true
 			end
 			menu.AnchorPoint = Vector2.new(1, flip and 1 or 0)
-			menu.Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y)
+			menu.Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y + (flip and 6 or -6))
 
-			Motion.tween(menu, { BackgroundTransparency = 0 }, theme.motion.short)
-			Motion.tween(self.chevron, { Rotation = 180 }, theme.motion.short)
+			Motion.tween(menu, {
+				BackgroundTransparency = 0,
+				Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y),
+			}, theme.motion.emphasizedDecelerate)
 
 			self._closeConn = Variables.services.UserInputService.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -5346,15 +5781,15 @@ __mods["elements.Dropdown"] = function()
 				return
 			end
 			local theme = self.window.theme
-			Motion.tween(self.menu, { BackgroundTransparency = 1 }, theme.motion.short4)
-			Motion.tween(self.chevron, { Rotation = 0 }, theme.motion.short)
+			Motion.tween(self.menu, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+			Motion.tween(self.chevron, { Rotation = 0 }, theme.motion.standard)
 			local menu = self.menu
 			self.menu = nil
 			if self._closeConn then
 				self._closeConn:Disconnect()
 				self._closeConn = nil
 			end
-			task.delay(theme.motion.short4.time, function()
+			task.delay(theme.motion.emphasizedAccelerate.time, function()
 				menu:Destroy()
 			end)
 		end
@@ -5730,45 +6165,65 @@ __mods["elements.ImageUploader"] = function()
 
 			local function makeButton(text, iconName, order, callback)
 				local button = Creator.new("TextButton", {
-					Size = UDim2.fromOffset(0, 36),
+					Size = UDim2.new(0, 0, 0, 36),
 					AutomaticSize = Enum.AutomaticSize.X,
 					BackgroundColor3 = theme.colors.secondaryContainer,
 					BorderSizePixel = 0,
 					AutoButtonColor = false,
-					Text = text,
-					Font = theme.fonts.bold,
-					TextColor3 = theme.colors.onSecondaryContainer,
-					TextSize = theme.type.labelMedium.size,
+					Text = "",
 					LayoutOrder = order,
 					Parent = actions,
 				}, {
 					BackgroundColor3 = "secondaryContainer",
-					TextColor3 = "onSecondaryContainer",
 				})
+
 				Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = button })
-				Creator.new("UIPadding", {
-					PaddingLeft = UDim.new(0, 16),
-					PaddingRight = UDim.new(0, 16),
+
+				local row = Creator.new("Frame", {
+					Size = UDim2.new(0, 0, 1, 0),
+					AutomaticSize = Enum.AutomaticSize.X,
+					BackgroundTransparency = 1,
 					Parent = button,
 				})
+
+				Creator.new("UIListLayout", {
+					FillDirection = Enum.FillDirection.Horizontal,
+					SortOrder = Enum.SortOrder.LayoutOrder,
+					Padding = UDim.new(0, 6),
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+					Parent = row,
+				})
+
 				if iconName then
-					local icon = Creator.new("ImageLabel", {
-						AnchorPoint = Vector2.new(0, 0.5),
-						Position = UDim2.new(0, 12, 0.5, 0),
+					Creator.new("ImageLabel", {
 						Size = UDim2.fromOffset(16, 16),
 						BackgroundTransparency = 1,
 						Image = Icons.image(iconName) or "",
 						ImageColor3 = theme.colors.onSecondaryContainer,
 						ScaleType = Enum.ScaleType.Fit,
-						Parent = button,
+						LayoutOrder = 0,
+						Parent = row,
 					}, { ImageColor3 = "onSecondaryContainer" })
-					button.TextXAlignment = Enum.TextXAlignment.Right
-					Creator.new("UIPadding", {
-						PaddingLeft = UDim.new(0, 36),
-						PaddingRight = UDim.new(0, 16),
-						Parent = button,
-					})
 				end
+
+				Creator.new("TextLabel", {
+					Size = UDim2.new(0, 0, 0, 18),
+					AutomaticSize = Enum.AutomaticSize.X,
+					BackgroundTransparency = 1,
+					Font = theme.fonts.bold,
+					Text = text,
+					TextColor3 = theme.colors.onSecondaryContainer,
+					TextSize = theme.type.labelMedium.size,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					Parent = row,
+				}, { TextColor3 = "onSecondaryContainer" })
+
+				Creator.new("UIPadding", {
+					PaddingLeft = UDim.new(0, 14),
+					PaddingRight = UDim.new(0, 14),
+					Parent = button,
+				})
+
 				Element.connect(self, button.MouseButton1Click, callback)
 				return button
 			end
@@ -5953,7 +6408,7 @@ __mods["elements.Input"] = function()
 			local main = Creator.new("Frame", {
 				Name = typeName,
 				LayoutOrder = order,
-				Size = UDim2.new(1, 0, 0, multiline and 128 or (props.Description and 76 or 60)),
+				Size = UDim2.new(1, 0, 0, multiline and 132 or (props.Description and 78 or 60)),
 				BackgroundTransparency = 1,
 				Parent = parentFrame,
 			})
@@ -5962,7 +6417,7 @@ __mods["elements.Input"] = function()
 			local fieldHeight = multiline and 104 or 56
 			local field = Creator.new("Frame", {
 				Name = "Field",
-				Position = UDim2.new(0, 0, 0, multiline and 0 or 8),
+				Position = UDim2.new(0, 0, 0, 0),
 				Size = UDim2.new(1, 0, 0, fieldHeight),
 				BackgroundColor3 = theme.colors.surfaceContainerHighest,
 				BorderSizePixel = 0,
@@ -5987,13 +6442,13 @@ __mods["elements.Input"] = function()
 			self.indicator = indicator
 
 			local label = Creator.new("TextLabel", {
-				Position = UDim2.new(0, 16, 0, multiline and 8 or 20),
-				Size = UDim2.new(1, -32, 0, 18),
+				Position = UDim2.new(0, 16, 0, 8),
+				Size = UDim2.new(1, -32, 0, 16),
 				BackgroundTransparency = 1,
-				Font = theme.fonts.regular,
+				Font = theme.fonts.bold,
 				Text = props.Title or "",
 				TextColor3 = theme.colors.onSurfaceVariant,
-				TextSize = theme.type.bodyLarge.size,
+				TextSize = theme.type.labelMedium.size,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				Parent = field,
@@ -6002,8 +6457,8 @@ __mods["elements.Input"] = function()
 
 			local textbox = Creator.new("TextBox", {
 				Name = "TextBox",
-				Position = UDim2.new(0, 16, 0, multiline and 32 or 24),
-				Size = UDim2.new(1, -32, 1, multiline and -40 or -24),
+				Position = UDim2.new(0, 16, 0, multiline and 30 or 26),
+				Size = UDim2.new(1, -32, 1, multiline and -38 or -30),
 				BackgroundTransparency = 1,
 				BorderSizePixel = 0,
 				Text = "",
@@ -6024,8 +6479,8 @@ __mods["elements.Input"] = function()
 
 			if props.Description then
 				local desc = Creator.new("TextLabel", {
-					Position = UDim2.new(0, 0, 1, -20),
-					Size = UDim2.new(1, 0, 0, 18),
+					Position = UDim2.new(0, 2, 0, fieldHeight + 6),
+					Size = UDim2.new(1, -4, 0, 18),
 					BackgroundTransparency = 1,
 					Font = theme.fonts.regular,
 					Text = props.Description,
@@ -6043,21 +6498,23 @@ __mods["elements.Input"] = function()
 					return
 				end
 				Motion.tween(label, {
-					Position = UDim2.new(0, 16, 0, floating and 6 or 20),
-					TextSize = floating and theme.type.bodySmall.size or theme.type.bodyLarge.size,
-				}, theme.motion.short)
+					Position = UDim2.new(0, 16, 0, floating and 8 or 20),
+					TextSize = floating and theme.type.labelMedium.size or theme.type.bodyLarge.size,
+				}, theme.motion.standard)
+				label.Position = UDim2.new(0, 16, 0, floating and 8 or 20)
+				label.TextSize = floating and theme.type.labelMedium.size or theme.type.bodyLarge.size
 			end
 
 			Element.connect(self, textbox.Focused, function()
 				setFloating(true)
-				Motion.tween(indicator, { BackgroundColor3 = theme.colors.primary, BackgroundTransparency = 0 }, theme.motion.short)
+				Motion.tween(indicator, { BackgroundColor3 = theme.colors.primary, BackgroundTransparency = 0 }, theme.motion.standard)
 			end)
 
 			Element.connect(self, textbox.FocusLost, function()
 				if textbox.Text == "" then
 					setFloating(false)
 				end
-				Motion.tween(indicator, { BackgroundColor3 = theme.colors.onSurfaceVariant, BackgroundTransparency = 0.6 }, theme.motion.short)
+				Motion.tween(indicator, { BackgroundColor3 = theme.colors.onSurfaceVariant, BackgroundTransparency = 0.6 }, theme.motion.standard)
 				self:_commit()
 			end)
 
@@ -6101,8 +6558,8 @@ __mods["elements.Input"] = function()
 			if self.textbox then
 				self.textbox.Text = value
 				if value ~= "" then
-					self.label.Position = UDim2.new(0, 16, 0, 6)
-					self.label.TextSize = self.window.theme.type.bodySmall.size
+					self.label.Position = UDim2.new(0, 16, 0, 8)
+					self.label.TextSize = self.window.theme.type.labelMedium.size
 				else
 					self.label.Position = UDim2.new(0, 16, 0, 20)
 					self.label.TextSize = self.window.theme.type.bodyLarge.size
@@ -6151,7 +6608,23 @@ __mods["elements.Keybind"] = function()
 		if key == nil then
 			return "None"
 		end
-		return key.Name
+		if type(key) == "string" then
+			return key
+		end
+		if typeof(key) == "EnumItem" then
+			return key.Name
+		end
+		return tostring(key)
+	end
+
+	local function isMouseButton(value)
+		if value == nil then
+			return false
+		end
+		if typeof(value) == "EnumItem" then
+			return value.EnumType == Enum.UserInputType
+		end
+		return false
 	end
 
 	function Keybind.new(ctx)
@@ -6283,10 +6756,10 @@ __mods["elements.Keybind"] = function()
 					self:Set(input.KeyCode, true)
 					self:_stopRecording()
 				elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-					self:Set(Enum.KeyCode.MouseButton1, true)
+					self:Set(Enum.UserInputType.MouseButton1, true)
 					self:_stopRecording()
 				elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-					self:Set(Enum.KeyCode.MouseButton2, true)
+					self:Set(Enum.UserInputType.MouseButton2, true)
 					self:_stopRecording()
 				end
 			end)
@@ -6594,7 +7067,7 @@ __mods["elements.ProgressBar"] = function()
 					Parent = circle,
 				}, { BackgroundColor3 = "primary" })
 				Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = indicator })
-				Creator.new("UIStroke", {
+				local indicatorStroke = Creator.new("UIStroke", {
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
 					Color = theme.colors.surface,
 					Thickness = 6,
@@ -6602,7 +7075,7 @@ __mods["elements.ProgressBar"] = function()
 					Parent = indicator,
 				})
 				self.indicator = indicator
-				self.indicatorStroke = indicator:GetChildren()[1]
+				self.indicatorStroke = indicatorStroke
 			else
 				local track = Creator.new("Frame", {
 					Position = UDim2.new(0, 0, 1, -8),
@@ -7394,7 +7867,7 @@ __mods["elements.Stepper"] = function()
 			end
 
 			local scroller = Creator.new("ScrollingFrame", {
-				Size = UDim2.new(1, 0, 0, 0),
+				Size = UDim2.new(1, 0, 0, 66),
 				BackgroundTransparency = 1,
 				BorderSizePixel = 0,
 				ScrollBarThickness = 3,
@@ -7429,7 +7902,7 @@ __mods["elements.Stepper"] = function()
 			local theme = self.window.theme
 
 			local holder = Creator.new("Frame", {
-				Size = UDim2.fromOffset(CIRCLE, CIRCLE),
+				Size = UDim2.fromOffset(CIRCLE, 66),
 				BackgroundTransparency = 1,
 				LayoutOrder = index,
 				Parent = self.inner,
@@ -7508,8 +7981,8 @@ __mods["elements.Stepper"] = function()
 			local caption = nil
 			if type(step) == "table" and (step.Title or step.Description) then
 				caption = Creator.new("TextLabel", {
-					Position = UDim2.new(0.5, 0, 1, 6),
-					Size = UDim2.new(1, 0, 0, 34),
+					Position = UDim2.new(0.5, 0, 0, 34),
+					Size = UDim2.new(1, 0, 0, 32),
 					BackgroundTransparency = 1,
 					Font = theme.fonts.bold,
 					Text = step.Title or "",
@@ -8843,14 +9316,15 @@ __mods["theme.Tokens"] = function()
 	}
 
 	Tokens.Motion = {
-		emphasized = { time = 0.5, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
-		emphasizedDecelerate = { time = 0.4, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
-		emphasizedAccelerate = { time = 0.2, style = Enum.EasingStyle.Quart, direction = Enum.EasingDirection.Out },
-		standard = { time = 0.3, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
-		standardDecelerate = { time = 0.25, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
-		standardAccelerate = { time = 0.2, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
-		short = { time = 0.12, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
-		short4 = { time = 0.08, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+		emphasized = { time = 0.55, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
+		emphasizedDecelerate = { time = 0.45, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
+		emphasizedAccelerate = { time = 0.25, style = Enum.EasingStyle.Quart, direction = Enum.EasingDirection.Out },
+		standard = { time = 0.35, style = Enum.EasingStyle.Quart, direction = Enum.EasingDirection.Out },
+		standardDecelerate = { time = 0.3, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+		standardAccelerate = { time = 0.22, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+		short = { time = 0.2, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+		short4 = { time = 0.11, style = Enum.EasingStyle.Quad, direction = Enum.EasingDirection.Out },
+		slow = { time = 0.8, style = Enum.EasingStyle.Quint, direction = Enum.EasingDirection.Out },
 	}
 
 	Tokens.Type = {

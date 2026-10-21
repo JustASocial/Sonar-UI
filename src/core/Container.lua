@@ -19,6 +19,8 @@ function Container.addChild(self, handle)
 	end
 	if self.built then
 		self:buildChild(handle)
+		local Element = require(script.Parent.Element)
+		Element.reveal(handle, 0)
 	end
 end
 

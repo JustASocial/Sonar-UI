@@ -126,10 +126,10 @@ function Dropdown.new(ctx)
 		end
 
 		Element.connect(self, trigger.MouseEnter, function()
-			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short4)
+			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
 		end)
 		Element.connect(self, trigger.MouseLeave, function()
-			Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short4)
+			Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short)
 		end)
 		Element.connect(self, trigger.MouseButton1Click, function()
 			if self.locked then
@@ -141,6 +141,8 @@ function Dropdown.new(ctx)
 				self:open()
 			end
 		end)
+
+		Motion.tween(self.chevron, { Rotation = 0 }, theme.motion.standard)
 
 		self:_updateDisplay()
 	end
@@ -243,10 +245,12 @@ function Dropdown.new(ctx)
 			flip = true
 		end
 		menu.AnchorPoint = Vector2.new(1, flip and 1 or 0)
-		menu.Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y)
+		menu.Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y + (flip and 6 or -6))
 
-		Motion.tween(menu, { BackgroundTransparency = 0 }, theme.motion.short)
-		Motion.tween(self.chevron, { Rotation = 180 }, theme.motion.short)
+		Motion.tween(menu, {
+			BackgroundTransparency = 0,
+			Position = UDim2.fromOffset(anchor.X + self.trigger.AbsoluteSize.X, y),
+		}, theme.motion.emphasizedDecelerate)
 
 		self._closeConn = Variables.services.UserInputService.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -381,15 +385,15 @@ function Dropdown.new(ctx)
 			return
 		end
 		local theme = self.window.theme
-		Motion.tween(self.menu, { BackgroundTransparency = 1 }, theme.motion.short4)
-		Motion.tween(self.chevron, { Rotation = 0 }, theme.motion.short)
+		Motion.tween(self.menu, { BackgroundTransparency = 1 }, theme.motion.emphasizedAccelerate)
+		Motion.tween(self.chevron, { Rotation = 0 }, theme.motion.standard)
 		local menu = self.menu
 		self.menu = nil
 		if self._closeConn then
 			self._closeConn:Disconnect()
 			self._closeConn = nil
 		end
-		task.delay(theme.motion.short4.time, function()
+		task.delay(theme.motion.emphasizedAccelerate.time, function()
 			menu:Destroy()
 		end)
 	end
