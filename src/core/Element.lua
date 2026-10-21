@@ -218,14 +218,7 @@ function Element.reveal(handle, delay)
 		end
 	end
 
-	local startPosition = main.Position
 	local originalTransparency = main.BackgroundTransparency
-	main.Position = UDim2.new(
-		startPosition.X.Scale,
-		startPosition.X.Offset,
-		startPosition.Y.Scale,
-		startPosition.Y.Offset + 12
-	)
 	main.BackgroundTransparency = 1
 	for _, target in ipairs(targets) do
 		if target:IsA("ImageLabel") then
@@ -240,7 +233,6 @@ function Element.reveal(handle, delay)
 			return
 		end
 		Motion.tween(main, {
-			Position = startPosition,
 			BackgroundTransparency = originalTransparency,
 		}, theme.motion.emphasizedDecelerate)
 		for _, target in ipairs(targets) do

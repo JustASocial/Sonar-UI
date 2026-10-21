@@ -154,6 +154,11 @@ function Section:_build(parentFrame, order)
 	if self.expanded then
 		self:flush()
 	end
+	self._heightConnection = self.contentFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if self.expanded and not self._animatingHeight then
+			self:_applyHeight(false)
+		end
+	end)
 	task.defer(function()
 		if self.main and self.main.Parent then
 			self:_applyHeight(false)
@@ -222,12 +227,18 @@ function Section:_applyHeight(animate)
 		return
 	end
 
+	self._animatingHeight = true
 	Motion.tween(self.main, { Size = UDim2.new(1, 0, 0, target) }, theme.motion.emphasized)
 	if not self.expanded then
 		task.delay(theme.motion.emphasized.time, function()
+			self._animatingHeight = false
 			if not self.expanded then
 				self.contentFrame.Visible = false
 			end
+		end)
+	else
+		task.delay(theme.motion.emphasized.time, function()
+			self._animatingHeight = false
 		end)
 	end
 end

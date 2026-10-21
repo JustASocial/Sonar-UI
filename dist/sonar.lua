@@ -985,14 +985,7 @@ __mods["core.Element"] = function()
 			end
 		end
 
-		local startPosition = main.Position
 		local originalTransparency = main.BackgroundTransparency
-		main.Position = UDim2.new(
-			startPosition.X.Scale,
-			startPosition.X.Offset,
-			startPosition.Y.Scale,
-			startPosition.Y.Offset + 12
-		)
 		main.BackgroundTransparency = 1
 		for _, target in ipairs(targets) do
 			if target:IsA("ImageLabel") then
@@ -1007,7 +1000,6 @@ __mods["core.Element"] = function()
 				return
 			end
 			Motion.tween(main, {
-				Position = startPosition,
 				BackgroundTransparency = originalTransparency,
 			}, theme.motion.emphasizedDecelerate)
 			for _, target in ipairs(targets) do
@@ -1895,6 +1887,11 @@ __mods["core.Section"] = function()
 		if self.expanded then
 			self:flush()
 		end
+		self._heightConnection = self.contentFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			if self.expanded and not self._animatingHeight then
+				self:_applyHeight(false)
+			end
+		end)
 		task.defer(function()
 			if self.main and self.main.Parent then
 				self:_applyHeight(false)
@@ -1963,12 +1960,18 @@ __mods["core.Section"] = function()
 			return
 		end
 
+		self._animatingHeight = true
 		Motion.tween(self.main, { Size = UDim2.new(1, 0, 0, target) }, theme.motion.emphasized)
 		if not self.expanded then
 			task.delay(theme.motion.emphasized.time, function()
+				self._animatingHeight = false
 				if not self.expanded then
 					self.contentFrame.Visible = false
 				end
+			end)
+		else
+			task.delay(theme.motion.emphasized.time, function()
+				self._animatingHeight = false
 			end)
 		end
 	end
