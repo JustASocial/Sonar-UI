@@ -226,6 +226,75 @@ function Window:_buildSurface()
 		Parent = surface,
 	}, { BackgroundColor3 = "outlineVariant" })
 	self.topDivider = divider
+
+	self:_buildResizeHandle(surface)
+end
+
+function Window:_buildResizeHandle(surface)
+	local theme = self.theme
+
+	local handle = Creator.new("TextButton", {
+		Name = "ResizeHandle",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -6, 1, -6),
+		Size = UDim2.fromOffset(20, 20),
+		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		Text = "",
+		ZIndex = 6,
+		Parent = surface,
+	})
+	self.resizeHandle = handle
+
+	local grip = Creator.new("ImageLabel", {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, 0, 1, 0),
+		Size = UDim2.fromOffset(12, 12),
+		BackgroundTransparency = 1,
+		Image = Icons.image("panel-bottom-right") or Icons.image("columns-2") or "",
+		ImageColor3 = theme.colors.onSurfaceVariant,
+		ImageTransparency = 0.6,
+		ScaleType = Enum.ScaleType.Fit,
+		ZIndex = 7,
+		Parent = handle,
+	}, { ImageColor3 = "onSurfaceVariant" })
+	self.resizeGrip = grip
+
+	local resizing = false
+	local startSize = nil
+	local startPosition = nil
+
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		resizing = true
+		startSize = self.root.AbsoluteSize
+		startPosition = Vector2.new(input.Position.X, input.Position.Y)
+	end)
+
+	self:_connect(Variables.services.UserInputService.InputChanged, function(input)
+		if not resizing then
+			return
+		end
+		if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		local deltaX = input.Position.X - startPosition.X
+		local deltaY = input.Position.Y - startPosition.Y
+		local min = self.minSize
+		local width = math.max(min.X.Offset, startSize.X + deltaX)
+		local height = math.max(min.Y.Offset, startSize.Y + deltaY)
+		self.root.Size = UDim2.fromOffset(width, height)
+		self.size = self.root.Size
+		if self._updateNavCanvas then
+			self._updateNavCanvas()
+		end
+	end)
+
+	self:_connect(Variables.services.UserInputService.InputEnded, function()
+		resizing = false
+	end)
 end
 
 function Window:_buildTopbar()

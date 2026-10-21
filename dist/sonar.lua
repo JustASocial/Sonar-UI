@@ -2839,6 +2839,75 @@ __mods["core.Window"] = function()
 			Parent = surface,
 		}, { BackgroundColor3 = "outlineVariant" })
 		self.topDivider = divider
+
+		self:_buildResizeHandle(surface)
+	end
+
+	function Window:_buildResizeHandle(surface)
+		local theme = self.theme
+
+		local handle = Creator.new("TextButton", {
+			Name = "ResizeHandle",
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -6, 1, -6),
+			Size = UDim2.fromOffset(20, 20),
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "",
+			ZIndex = 6,
+			Parent = surface,
+		})
+		self.resizeHandle = handle
+
+		local grip = Creator.new("ImageLabel", {
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, 0, 1, 0),
+			Size = UDim2.fromOffset(12, 12),
+			BackgroundTransparency = 1,
+			Image = Icons.image("panel-bottom-right") or Icons.image("columns-2") or "",
+			ImageColor3 = theme.colors.onSurfaceVariant,
+			ImageTransparency = 0.6,
+			ScaleType = Enum.ScaleType.Fit,
+			ZIndex = 7,
+			Parent = handle,
+		}, { ImageColor3 = "onSurfaceVariant" })
+		self.resizeGrip = grip
+
+		local resizing = false
+		local startSize = nil
+		local startPosition = nil
+
+		handle.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+			resizing = true
+			startSize = self.root.AbsoluteSize
+			startPosition = Vector2.new(input.Position.X, input.Position.Y)
+		end)
+
+		self:_connect(Variables.services.UserInputService.InputChanged, function(input)
+			if not resizing then
+				return
+			end
+			if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+			local deltaX = input.Position.X - startPosition.X
+			local deltaY = input.Position.Y - startPosition.Y
+			local min = self.minSize
+			local width = math.max(min.X.Offset, startSize.X + deltaX)
+			local height = math.max(min.Y.Offset, startSize.Y + deltaY)
+			self.root.Size = UDim2.fromOffset(width, height)
+			self.size = self.root.Size
+			if self._updateNavCanvas then
+				self._updateNavCanvas()
+			end
+		end)
+
+		self:_connect(Variables.services.UserInputService.InputEnded, function()
+			resizing = false
+		end)
 	end
 
 	function Window:_buildTopbar()
@@ -3964,14 +4033,14 @@ __mods["elements.ChipGroup"] = function()
 
 	local ChipGroup = {}
 
-	local CHIP_HEIGHT = 32
+	local CHIP_HEIGHT = 34
 
 	local VARIANTS = {
 		assist = { fill = "surface", text = "onSurface", stroke = "outline" },
 		filter = { fill = "surface", text = "onSurfaceVariant", stroke = "outline" },
 		input = { fill = "surface", text = "onSurface", stroke = "outline" },
-		suggestion = { fill = "surfaceContainerHigh", text = "onSurface", stroke = nil },
-		tonal = { fill = "secondaryContainer", text = "onSecondaryContainer", stroke = nil },
+		suggestion = { fill = "surfaceContainerHigh", text = "onSurface" },
+		tonal = { fill = "secondaryContainer", text = "onSecondaryContainer" },
 	}
 
 	function ChipGroup.new(ctx)
@@ -3987,13 +4056,6 @@ __mods["elements.ChipGroup"] = function()
 		handle.value = props.Value
 		if handle.multi and type(handle.value) ~= "table" then
 			handle.value = handle.value and { handle.value } or {}
-		end
-
-		local function label(option)
-			if type(option) == "string" then
-				return option
-			end
-			return option.Title or ""
 		end
 
 		function handle:_build(parentFrame, order)
@@ -4027,9 +4089,10 @@ __mods["elements.ChipGroup"] = function()
 					TextColor3 = theme.colors.onSurface,
 					TextSize = theme.type.titleMedium.size,
 					TextXAlignment = Enum.TextXAlignment.Left,
+					TextYAlignment = Enum.TextYAlignment.Center,
+					LayoutOrder = 1,
 					Parent = main,
 				}, { TextColor3 = "onSurface" })
-				title.LayoutOrder = 1
 				self.title = title
 			end
 
@@ -4042,20 +4105,22 @@ __mods["elements.ChipGroup"] = function()
 					TextColor3 = theme.colors.onSurfaceVariant,
 					TextSize = theme.type.bodySmall.size,
 					TextXAlignment = Enum.TextXAlignment.Left,
+					TextYAlignment = Enum.TextYAlignment.Center,
 					TextTruncate = Enum.TextTruncate.AtEnd,
+					LayoutOrder = 2,
 					Parent = main,
 				}, { TextColor3 = "onSurfaceVariant" })
-				desc.LayoutOrder = 2
 				self.desc = desc
 			end
 
 			local inner = Creator.new("Frame", {
+				Name = "Chips",
 				Size = UDim2.new(1, 0, 0, 0),
 				AutomaticSize = Enum.AutomaticSize.Y,
 				BackgroundTransparency = 1,
+				LayoutOrder = 3,
 				Parent = main,
 			})
-			inner.LayoutOrder = 3
 			self.inner = inner
 
 			Creator.new("UIListLayout", {
@@ -4095,6 +4160,7 @@ __mods["elements.ChipGroup"] = function()
 				BackgroundColor3 = variant.fill,
 				BackgroundTransparency = variant.fill == "surface" and 1 or 0,
 			})
+
 			Creator.new("UICorner", {
 				CornerRadius = theme.shape.chip,
 				Parent = chip,
@@ -4111,9 +4177,24 @@ __mods["elements.ChipGroup"] = function()
 			end
 
 			Creator.new("UIPadding", {
-				PaddingLeft = UDim.new(0, 12),
-				PaddingRight = UDim.new(0, 12),
+				PaddingLeft = UDim.new(0, 14),
+				PaddingRight = UDim.new(0, 14),
 				Parent = chip,
+			})
+
+			local row = Creator.new("Frame", {
+				Size = UDim2.new(0, 0, 1, 0),
+				AutomaticSize = Enum.AutomaticSize.X,
+				BackgroundTransparency = 1,
+				Parent = chip,
+			})
+
+			Creator.new("UIListLayout", {
+				FillDirection = Enum.FillDirection.Horizontal,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				Padding = UDim.new(0, 8),
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Parent = row,
 			})
 
 			local text = ""
@@ -4125,37 +4206,24 @@ __mods["elements.ChipGroup"] = function()
 				iconName = option.Icon
 			end
 
-			local row = Creator.new("Frame", {
-				Name = "Row",
-				Size = UDim2.new(0, 0, 1, 0),
-				AutomaticSize = Enum.AutomaticSize.X,
-				BackgroundTransparency = 1,
-				Parent = chip,
-			})
-
-			Creator.new("UIListLayout", {
-				FillDirection = Enum.FillDirection.Horizontal,
-				SortOrder = Enum.SortOrder.LayoutOrder,
-				Padding = UDim.new(0, 6),
-				VerticalAlignment = Enum.VerticalAlignment.Center,
-				Parent = row,
-			})
-
 			local label = Creator.new("TextLabel", {
-				Size = UDim2.new(0, 0, 0, 18),
+				Size = UDim2.new(0, 0, 0, 20),
 				AutomaticSize = Enum.AutomaticSize.X,
 				BackgroundTransparency = 1,
-				Font = theme.fonts.bold,
+				Font = theme.fonts.medium,
 				Text = text,
 				TextColor3 = theme.colors[variant.text],
 				TextSize = theme.type.labelLarge.size,
 				TextXAlignment = Enum.TextXAlignment.Left,
+				TextYAlignment = Enum.TextYAlignment.Center,
 				TextTruncate = Enum.TextTruncate.AtEnd,
+				LayoutOrder = 1,
 				Parent = row,
 			}, { TextColor3 = variant.text })
 
+			local icon = nil
 			if iconName then
-				local icon = Creator.new("ImageLabel", {
+				icon = Creator.new("ImageLabel", {
 					Size = UDim2.fromOffset(16, 16),
 					BackgroundTransparency = 1,
 					Image = Icons.image(iconName) or "",
@@ -4164,7 +4232,6 @@ __mods["elements.ChipGroup"] = function()
 					LayoutOrder = 0,
 					Parent = row,
 				}, { ImageColor3 = variant.text })
-				self.chipIcon = icon
 			end
 
 			local check = nil
@@ -4181,6 +4248,21 @@ __mods["elements.ChipGroup"] = function()
 				}, { ImageColor3 = "primary" })
 			end
 
+			local state = Creator.new("Frame", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = theme.colors.onSurface,
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				Parent = chip,
+			}, { BackgroundColor3 = "onSurface" })
+
+			Element.connect(self, chip.MouseEnter, function()
+				Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
+			end)
+			Element.connect(self, chip.MouseLeave, function()
+				Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short)
+			end)
+
 			Element.connect(self, chip.MouseButton1Click, function()
 				if self.locked then
 					return
@@ -4191,7 +4273,8 @@ __mods["elements.ChipGroup"] = function()
 				if self.multi then
 					local existing = nil
 					for index, entry in ipairs(self.value or {}) do
-						if (type(entry) == "string" and entry == text) or (type(entry) == "table" and entry.Title == text) then
+						local entryText = type(entry) == "string" and entry or (entry.Title or "")
+						if entryText == text then
 							existing = index
 							break
 						end
@@ -4216,11 +4299,13 @@ __mods["elements.ChipGroup"] = function()
 				end
 			end)
 
-			self.chips[index] = { chip = chip, label = label, check = check, option = option, text = text }
+			self.chips[index] = { chip = chip, label = label, check = check, option = option, text = text, icon = icon }
 		end
 
 		function handle:_renderSelection()
 			local theme = self.window.theme
+			local variant = VARIANTS[self.props.Variant] or VARIANTS.assist
+
 			for _, data in ipairs(self.chips) do
 				local selected = false
 				if self.multi then
@@ -4237,20 +4322,25 @@ __mods["elements.ChipGroup"] = function()
 					selected = currentText == data.text
 				end
 
-				local variant = VARIANTS[self.props.Variant] or VARIANTS.assist
 				if selected then
-					Motion.tween(data.chip, { BackgroundTransparency = 0 }, theme.motion.short4)
-					Motion.tween(data.chip, { BackgroundColor3 = theme.colors.secondaryContainer }, theme.motion.short4)
-					Motion.tween(data.label, { TextColor3 = theme.colors.onSecondaryContainer }, theme.motion.short4)
+					Motion.tween(data.chip, { BackgroundTransparency = 0 }, theme.motion.short)
+					Motion.tween(data.chip, { BackgroundColor3 = theme.colors.secondaryContainer }, theme.motion.short)
+					Motion.tween(data.label, { TextColor3 = theme.colors.onSecondaryContainer }, theme.motion.short)
+					if data.icon then
+						Motion.tween(data.icon, { ImageColor3 = theme.colors.onSecondaryContainer }, theme.motion.short)
+					end
 					if data.check then
-						Motion.tween(data.check, { ImageTransparency = 0 }, theme.motion.short4)
+						Motion.tween(data.check, { ImageTransparency = 0 }, theme.motion.short)
 					end
 				else
-					Motion.tween(data.chip, { BackgroundTransparency = variant.fill == "surface" and 1 or 0 }, theme.motion.short4)
-					Motion.tween(data.chip, { BackgroundColor3 = theme.colors[variant.fill] }, theme.motion.short4)
-					Motion.tween(data.label, { TextColor3 = theme.colors[variant.text] }, theme.motion.short4)
+					Motion.tween(data.chip, { BackgroundTransparency = variant.fill == "surface" and 1 or 0 }, theme.motion.short)
+					Motion.tween(data.chip, { BackgroundColor3 = theme.colors[variant.fill] }, theme.motion.short)
+					Motion.tween(data.label, { TextColor3 = theme.colors[variant.text] }, theme.motion.short)
+					if data.icon then
+						Motion.tween(data.icon, { ImageColor3 = theme.colors[variant.text] }, theme.motion.short)
+					end
 					if data.check then
-						Motion.tween(data.check, { ImageTransparency = 1 }, theme.motion.short4)
+						Motion.tween(data.check, { ImageTransparency = 1 }, theme.motion.short)
 					end
 				end
 			end

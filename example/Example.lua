@@ -396,6 +396,45 @@ for _, seed in ipairs(seeds) do
 	})
 end
 
+themeSection:createDivider({ Text = "Custom" })
+themeSection:createButton({
+	Title = "Custom lavender",
+	Variant = "tonal",
+	Callback = function()
+		window:setTheme({
+			name = "Material",
+			mode = "dark",
+			colors = {
+				primary = "#E0B0FF",
+				onPrimary = "#381E72",
+				surfaceContainer = "#2A2233",
+				surfaceContainerHigh = "#342B3F",
+			},
+			shape = { element = 20, card = 24 },
+			motion = { emphasized = 0.7 },
+		})
+	end,
+})
+themeSection:createButton({
+	Title = "Rounded and soft",
+	Variant = "tonal",
+	Callback = function()
+		window:setTheme({
+			name = "Material",
+			mode = "dark",
+			shape = { element = 28, card = 32, field = 20, button = 28 },
+			state = { hover = 0.14, pressed = 0.2 },
+		})
+	end,
+})
+themeSection:createButton({
+	Title = "Back to Material You",
+	Variant = "outlined",
+	Callback = function()
+		window:setTheme({ name = "Material", mode = "dark" })
+	end,
+})
+
 themeSection:createDivider({ Text = "Language" })
 themeSection:createButton({
 	Title = "loc:LANG_EN",
