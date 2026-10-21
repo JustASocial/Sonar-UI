@@ -1885,9 +1885,11 @@ __mods["core.Section"] = function()
 			LayoutOrder = 2,
 			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
-			BackgroundTransparency = 1,
+			BackgroundColor3 = theme.colors.surfaceContainerHigh,
+			BackgroundTransparency = 0,
+			BorderSizePixel = 0,
 			Parent = main,
-		})
+		}, { BackgroundColor3 = "surfaceContainerHigh" })
 		self.contentFrame = content
 
 		Creator.new("UIListLayout", {
@@ -1905,7 +1907,7 @@ __mods["core.Section"] = function()
 		Creator.new("UIStroke", {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = theme.colors.outlineVariant,
-			Transparency = 0.6,
+			Transparency = 0.75,
 			Thickness = 1,
 			Parent = content,
 		}, { Color = "outlineVariant" })
