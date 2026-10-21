@@ -1,4 +1,5 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Row = require(script.Parent.Parent.core.Row)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Variables = require(script.Parent.Parent.core.Variables)
@@ -79,54 +80,27 @@ function ColorPicker.new(ctx)
 		local theme = window.theme
 		Creator.window = window
 
-		local main = Creator.new("Frame", {
-			Name = "ColorPicker",
-			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, props.Description and 76 or 60),
-			BackgroundTransparency = 1,
-			Parent = parentFrame,
+		Row.build(self, {
+			title = props.Title,
+			description = props.Description,
+			icon = props.Icon,
+			controlWidth = 44,
+			parent = parentFrame,
+			order = order,
 		})
-		self.main = main
 
-		local title = Creator.new("TextLabel", {
-			Position = UDim2.new(0, 0, 0, 8),
-			Size = UDim2.new(1, -56, 0, 24),
-			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
-			Text = props.Title or "",
-			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.titleMedium.size,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = main,
-		}, { TextColor3 = "onSurface" })
-		self.title = title
-
-		if props.Description then
-			local desc = Creator.new("TextLabel", {
-				Position = UDim2.new(0, 0, 0, 32),
-				Size = UDim2.new(1, -56, 0, 18),
-				BackgroundTransparency = 1,
-				Font = theme.fonts.regular,
-				Text = props.Description,
-				TextColor3 = theme.colors.onSurfaceVariant,
-				TextSize = theme.type.bodySmall.size,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				TextTruncate = Enum.TextTruncate.AtEnd,
-				Parent = main,
-			}, { TextColor3 = "onSurfaceVariant" })
-			self.desc = desc
-		end
+		local content = self.content
 
 		local swatch = Creator.new("TextButton", {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, 0, 0, 8),
+			Name = "Swatch",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, 0, 0.5, 0),
 			Size = UDim2.fromOffset(44, 44),
 			BackgroundColor3 = self.value,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
 			Text = "",
-			Parent = main,
+			Parent = content,
 		}, { BackgroundColor3 = "surface" })
 		self.swatch = swatch
 
@@ -163,8 +137,6 @@ function ColorPicker.new(ctx)
 			end
 			self:open()
 		end)
-
-		self:_render()
 	end
 
 	function handle:_render()

@@ -1,4 +1,5 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Row = require(script.Parent.Parent.core.Row)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
@@ -39,25 +40,28 @@ function Dropdown.new(ctx)
 		local theme = window.theme
 		Creator.window = window
 
-		local main = Creator.new("Frame", {
-			Name = "Dropdown",
-			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, props.Description and 76 or 60),
-			BackgroundTransparency = 1,
-			Parent = parentFrame,
+		Row.build(self, {
+			title = props.Title,
+			description = props.Description,
+			icon = props.Icon,
+			controlWidth = 170,
+			parent = parentFrame,
+			order = order,
 		})
-		self.main = main
+
+		local content = self.content
 
 		local trigger = Creator.new("TextButton", {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, 0, 0, 8),
-			Size = UDim2.fromOffset(200, 44),
-			BackgroundColor3 = theme.colors.surfaceContainerHigh,
+			Name = "Trigger",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, 0, 0.5, 0),
+			Size = UDim2.fromOffset(170, 40),
+			BackgroundColor3 = theme.colors.surfaceContainerHighest,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
 			Text = "",
-			Parent = main,
-		}, { BackgroundColor3 = "surfaceContainerHigh" })
+			Parent = content,
+		}, { BackgroundColor3 = "surfaceContainerHighest" })
 		self.trigger = trigger
 
 		Creator.new("UICorner", {
@@ -439,7 +443,7 @@ function Dropdown.new(ctx)
 			return
 		end
 		local theme = self.window.theme
-		self.trigger.BackgroundColor3 = theme.colors.surfaceContainerHigh
+		self.trigger.BackgroundColor3 = theme.colors.surfaceContainerHighest
 		self.display.TextColor3 = theme.colors.onSurface
 		self.chevron.ImageColor3 = theme.colors.onSurfaceVariant
 	end

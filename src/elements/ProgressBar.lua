@@ -1,5 +1,7 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Row = require(script.Parent.Parent.core.Row)
 local Creator = require(script.Parent.Parent.core.Creator)
+local Motion = require(script.Parent.Parent.core.Motion)
 
 local ProgressBar = {}
 
@@ -21,66 +23,24 @@ function ProgressBar.new(ctx)
 		local theme = window.theme
 		Creator.window = window
 
-		local main = Creator.new("Frame", {
-			Name = "ProgressBar",
-			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, props.Description and 68 or 52),
-			BackgroundTransparency = 1,
-			Parent = parentFrame,
-		})
-		self.main = main
-
-		local title = Creator.new("TextLabel", {
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, -70, 0, 20),
-			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
-			Text = props.Title or "",
-			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.titleMedium.size,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = main,
-		}, { TextColor3 = "onSurface" })
-		self.title = title
-
-		local valueLabel = Creator.new("TextLabel", {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, 0, 0, 0),
-			Size = UDim2.fromOffset(62, 20),
-			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
-			Text = "",
-			TextColor3 = theme.colors.primary,
-			TextSize = theme.type.labelLarge.size,
-			TextXAlignment = Enum.TextXAlignment.Right,
-			Parent = main,
-		}, { TextColor3 = "primary" })
-		self.valueLabel = valueLabel
-
-		if props.Description then
-			local desc = Creator.new("TextLabel", {
-				Position = UDim2.new(0, 0, 0, 20),
-				Size = UDim2.new(1, 0, 0, 18),
-				BackgroundTransparency = 1,
-				Font = theme.fonts.regular,
-				Text = props.Description,
-				TextColor3 = theme.colors.onSurfaceVariant,
-				TextSize = theme.type.bodySmall.size,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				TextTruncate = Enum.TextTruncate.AtEnd,
-				Parent = main,
-			}, { TextColor3 = "onSurfaceVariant" })
-			self.desc = desc
-		end
-
 		if self.circular then
+			Row.build(self, {
+				title = props.Title,
+				description = props.Description,
+				icon = props.Icon,
+				controlWidth = 48,
+				parent = parentFrame,
+				order = order,
+			})
+
+			local content = self.content
+
 			local circle = Creator.new("Frame", {
-				AnchorPoint = Vector2.new(1, 0),
-				Position = UDim2.new(1, 0, 0, 0),
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, 0, 0.5, 0),
 				Size = UDim2.fromOffset(44, 44),
 				BackgroundTransparency = 1,
-				Parent = main,
+				Parent = content,
 			})
 			self.circle = circle
 
@@ -109,12 +69,38 @@ function ProgressBar.new(ctx)
 			self.indicator = indicator
 			self.indicatorStroke = indicatorStroke
 		else
+			Row.build(self, {
+				title = props.Title,
+				description = props.Description,
+				icon = props.Icon,
+				controlWidth = 70,
+				parent = parentFrame,
+				order = order,
+				height = 76,
+			})
+
+			local content = self.content
+
+			local valueLabel = Creator.new("TextLabel", {
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, 0, 0.5, 0),
+				Size = UDim2.fromOffset(64, 22),
+				BackgroundTransparency = 1,
+				Font = theme.fonts.medium,
+				Text = "",
+				TextColor3 = theme.colors.primary,
+				TextSize = theme.type.labelLarge.size,
+				TextXAlignment = Enum.TextXAlignment.Right,
+				Parent = content,
+			}, { TextColor3 = "primary" })
+			self.valueLabel = valueLabel
+
 			local track = Creator.new("Frame", {
-				Position = UDim2.new(0, 0, 1, -8),
+				Position = UDim2.new(0, 0, 1, -20),
 				Size = UDim2.new(1, 0, 0, 6),
 				BackgroundColor3 = theme.colors.surfaceVariant,
 				BorderSizePixel = 0,
-				Parent = main,
+				Parent = self.main,
 			}, { BackgroundColor3 = "surfaceVariant" })
 			self.track = track
 			Creator.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = track })
@@ -147,10 +133,10 @@ function ProgressBar.new(ctx)
 		local ratio = self:_ratio()
 		if self.circular then
 			self.indicatorStroke.Transparency = 1 - ratio
-			self.valueLabel.Text = string.format("%d%%", math.floor(ratio * 100))
 		else
 			self.indicator.Size = UDim2.new(ratio, 0, 1, 0)
-			self.valueLabel.Text = props.Format and props.Format(self.value, ratio) or string.format("%d%%", math.floor(ratio * 100))
+			self.valueLabel.Text = props.Format and props.Format(self.value, ratio)
+				or string.format("%d%%", math.floor(ratio * 100))
 		end
 	end
 
@@ -176,11 +162,14 @@ function ProgressBar.new(ctx)
 			return
 		end
 		local theme = self.window.theme
+		Row.refreshTheme(self)
 		self.indicator.BackgroundColor3 = theme.colors.primary
 		if self.track then
 			self.track.BackgroundColor3 = theme.colors.surfaceVariant
 		end
-		self.valueLabel.TextColor3 = theme.colors.primary
+		if self.valueLabel then
+			self.valueLabel.TextColor3 = theme.colors.primary
+		end
 	end
 
 	function handle:_destroy()

@@ -72,10 +72,10 @@ __fire(button.main, "MouseEnter")
 __fire(button.main, "MouseButton1Click")
 __fire(button.main, "MouseLeave")
 
-__fire(toggle.switch, "MouseEnter")
-__fire(toggle.switch, "MouseButton1Click")
+__fire(toggle.track, "MouseEnter")
+__fire(toggle.track, "MouseButton1Click")
 print("toggle after click:", toggle.value)
-__fire(toggle.switch, "MouseButton1Click")
+__fire(toggle.track, "MouseButton1Click")
 print("toggle after second click:", toggle.value)
 
 __fire(checkbox.box, "MouseButton1Click")

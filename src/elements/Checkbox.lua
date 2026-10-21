@@ -1,9 +1,15 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Row = require(script.Parent.Parent.core.Row)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
 
 local Checkbox = {}
+
+local SIZES = {
+	Checkbox = 20,
+	Radio = 20,
+}
 
 function Checkbox.new(ctx)
 	local props = ctx.props or {}
@@ -21,29 +27,35 @@ function Checkbox.new(ctx)
 		local theme = window.theme
 		Creator.window = window
 
-		local row = Creator.new("Frame", {
-			Name = radio and "Radio" or "Checkbox",
-			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, props.Description and 64 or 48),
-			BackgroundTransparency = 1,
-			Parent = parentFrame,
-		})
-		self.main = row
+		local size = SIZES[radio and "Radio" or "Checkbox"]
 
+		Row.build(self, {
+			title = props.Title,
+			description = props.Description,
+			icon = props.Icon,
+			controlWidth = size,
+			parent = parentFrame,
+			order = order,
+		})
+
+		local content = self.content
 		local box = Creator.new("TextButton", {
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 0, 0.5, props.Description and -10 or 0),
-			Size = UDim2.fromOffset(18, 18),
+			Name = radio and "Radio" or "Checkbox",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, 0, 0.5, 0),
+			Size = UDim2.fromOffset(size, size),
 			BackgroundColor3 = theme.colors.surface,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
 			Text = "",
-			Parent = row,
+			Parent = content,
 		}, { BackgroundColor3 = "surface" })
 		self.box = box
 
-		local radius = radio and UDim.new(1, 0) or UDim.new(0, 2)
-		Creator.new("UICorner", { CornerRadius = radius, Parent = box })
+		Creator.new("UICorner", {
+			CornerRadius = radio and UDim.new(1, 0) or UDim.new(0, 3),
+			Parent = box,
+		})
 
 		local stroke = Creator.new("UIStroke", {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
@@ -61,14 +73,14 @@ function Checkbox.new(ctx)
 			BorderSizePixel = 0,
 			Parent = box,
 		}, { BackgroundColor3 = "onSurface" })
-		self.state = state
+		self.boxState = state
 
-		local mark = nil
+		local mark
 		if radio then
 			mark = Creator.new("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.5, 0.5),
-				Size = UDim2.fromOffset(8, 8),
+				Size = UDim2.fromOffset(10, 10),
 				BackgroundColor3 = theme.colors.onPrimary,
 				BorderSizePixel = 0,
 				Parent = box,
@@ -82,49 +94,18 @@ function Checkbox.new(ctx)
 				BackgroundTransparency = 1,
 				Image = Icons.image("check") or "",
 				ImageColor3 = theme.colors.onPrimary,
+				ImageTransparency = 1,
 				ScaleType = Enum.ScaleType.Fit,
 				Parent = box,
 			}, { ImageColor3 = "onPrimary" })
 		end
 		self.mark = mark
 
-		local title = Creator.new("TextLabel", {
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 30, 0.5, props.Description and -10 or 0),
-			Size = UDim2.new(1, -46, 1, 0),
-			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
-			Text = props.Title or "",
-			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.titleMedium.size,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = row,
-		}, { TextColor3 = "onSurface" })
-		self.title = title
-
-		if props.Description then
-			local desc = Creator.new("TextLabel", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 30, 0.5, 12),
-				Size = UDim2.new(1, -46, 1, 0),
-				BackgroundTransparency = 1,
-				Font = theme.fonts.regular,
-				Text = props.Description,
-				TextColor3 = theme.colors.onSurfaceVariant,
-				TextSize = theme.type.bodySmall.size,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				TextTruncate = Enum.TextTruncate.AtEnd,
-				Parent = row,
-			}, { TextColor3 = "onSurfaceVariant" })
-			self.desc = desc
-		end
-
 		Element.connect(self, box.MouseEnter, function()
-			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short4)
+			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
 		end)
 		Element.connect(self, box.MouseLeave, function()
-			Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short4)
+			Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short)
 		end)
 		Element.connect(self, box.MouseButton1Click, function()
 			if self.locked then
@@ -136,14 +117,11 @@ function Checkbox.new(ctx)
 		self:_render()
 	end
 
-	function handle:_render(animate)
+	function handle:_render()
 		local theme = self.window.theme
 		local on = self.value == true
-		local token = animate and theme.motion.short or theme.motion.short4
+		local token = theme.motion.short
 
-		if self.mark:IsA("ImageLabel") then
-			Motion.tween(self.mark, { ImageColor3 = on and theme.colors.onPrimary or theme.colors.surface }, token)
-		end
 		Motion.tween(self.box, {
 			BackgroundColor3 = on and theme.colors.primary or theme.colors.surface,
 		}, token)
@@ -151,10 +129,17 @@ function Checkbox.new(ctx)
 			Color = on and theme.colors.primary or theme.colors.onSurfaceVariant,
 			Transparency = on and 1 or 0,
 		}, token)
+
 		if self.mark:IsA("ImageLabel") then
-			Motion.tween(self.mark, { ImageTransparency = on and 0 or 1 }, token)
+			Motion.tween(self.mark, {
+				ImageTransparency = on and 0 or 1,
+				ImageColor3 = on and theme.colors.onPrimary or theme.colors.surface,
+			}, token)
 		else
-			Motion.tween(self.mark, { Size = on and UDim2.fromOffset(8, 8) or UDim2.fromOffset(0, 0) }, token)
+			Motion.tween(self.mark, {
+				Size = on and UDim2.fromOffset(10, 10) or UDim2.fromOffset(0, 0),
+				BackgroundColor3 = theme.colors.onPrimary,
+			}, token)
 		end
 	end
 
@@ -165,10 +150,10 @@ function Checkbox.new(ctx)
 		end
 		self.value = value
 		if self.main then
-			self:_render(true)
+			self:_render()
 		end
-		if not skipCallback and self.props.Callback then
-			task.spawn(self.props.Callback, value)
+		if not skipCallback and props.Callback then
+			task.spawn(props.Callback, value)
 		end
 		if self.window and self.flag then
 			self.window:_persist(self)
@@ -183,7 +168,8 @@ function Checkbox.new(ctx)
 		if not self.main then
 			return
 		end
-		self:_render(false)
+		Row.refreshTheme(self)
+		self:_render()
 	end
 
 	function handle:_destroy()

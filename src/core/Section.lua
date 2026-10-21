@@ -34,10 +34,24 @@ function Section:_build(parentFrame, order)
 		LayoutOrder = order,
 		Size = UDim2.new(1, 0, 0, 40),
 		AutomaticSize = Enum.AutomaticSize.None,
-		BackgroundTransparency = 1,
+		BackgroundColor3 = theme.colors.surfaceContainerHigh,
+		BackgroundTransparency = 0,
+		BorderSizePixel = 0,
 		Parent = parentFrame,
-	})
+	}, { BackgroundColor3 = "surfaceContainerHigh" })
 	self.main = main
+
+	Creator.new("UICorner", {
+		CornerRadius = theme.shape.card,
+		Parent = main,
+	})
+	Creator.new("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = theme.colors.outlineVariant,
+		Transparency = 0.75,
+		Thickness = 1,
+		Parent = main,
+	}, { Color = "outlineVariant" })
 
 	local stack = Creator.new("UIListLayout", {
 		FillDirection = Enum.FillDirection.Vertical,
@@ -49,7 +63,7 @@ function Section:_build(parentFrame, order)
 	local header = Creator.new("TextButton", {
 		Name = "Header",
 		LayoutOrder = 1,
-		Size = UDim2.new(1, 0, 0, 40),
+		Size = UDim2.new(1, 0, 0, 44),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
@@ -67,7 +81,7 @@ function Section:_build(parentFrame, order)
 	self.state = state
 
 	Creator.new("UICorner", {
-		CornerRadius = theme.shape.element,
+		CornerRadius = theme.shape.card,
 		Parent = header,
 	})
 
@@ -119,11 +133,9 @@ function Section:_build(parentFrame, order)
 		LayoutOrder = 2,
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundColor3 = theme.colors.surfaceContainerHigh,
-		BackgroundTransparency = 0,
-		BorderSizePixel = 0,
+		BackgroundTransparency = 1,
 		Parent = main,
-	}, { BackgroundColor3 = "surfaceContainerHigh" })
+	})
 	self.contentFrame = content
 
 	Creator.new("UIListLayout", {
@@ -134,20 +146,10 @@ function Section:_build(parentFrame, order)
 	})
 
 	Creator.new("UIPadding", {
-		PaddingBottom = UDim.new(0, 4),
-		Parent = content,
-	})
-
-	Creator.new("UIStroke", {
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-		Color = theme.colors.outlineVariant,
-		Transparency = 0.75,
-		Thickness = 1,
-		Parent = content,
-	}, { Color = "outlineVariant" })
-
-	Creator.new("UICorner", {
-		CornerRadius = theme.shape.element,
+		PaddingTop = UDim.new(0, 2),
+		PaddingBottom = UDim.new(0, 10),
+		PaddingLeft = UDim.new(0, 10),
+		PaddingRight = UDim.new(0, 10),
 		Parent = content,
 	})
 
@@ -217,7 +219,7 @@ end
 
 function Section:_applyHeight(animate)
 	local theme = self.window.theme
-	local headerHeight = 40
+	local headerHeight = 44
 	local contentHeight = self.contentFrame.AbsoluteSize.Y
 	local target = self.expanded and (headerHeight + contentHeight) or headerHeight
 
@@ -231,18 +233,12 @@ function Section:_applyHeight(animate)
 
 	self._animatingHeight = true
 	Motion.tween(self.main, { Size = UDim2.new(1, 0, 0, target) }, theme.motion.emphasized)
-	if not self.expanded then
-		task.delay(theme.motion.emphasized.time, function()
-			self._animatingHeight = false
-			if not self.expanded then
-				self.contentFrame.Visible = false
-			end
-		end)
-	else
-		task.delay(theme.motion.emphasized.time, function()
-			self._animatingHeight = false
-		end)
-	end
+	task.delay(theme.motion.emphasized.time, function()
+		self._animatingHeight = false
+		if not self.expanded then
+			self.contentFrame.Visible = false
+		end
+	end)
 end
 
 function Section:toggle()
@@ -262,6 +258,7 @@ function Section:_refreshTheme()
 		return
 	end
 	local theme = self.window.theme
+	self.main.BackgroundColor3 = theme.colors.surfaceContainerHigh
 	self.title.TextColor3 = theme.colors.onSurface
 	if self.icon then
 		self.icon.ImageColor3 = theme.colors.onSurfaceVariant

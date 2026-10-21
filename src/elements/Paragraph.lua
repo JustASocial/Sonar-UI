@@ -1,8 +1,16 @@
 local Element = require(script.Parent.Parent.core.Element)
 local Creator = require(script.Parent.Parent.core.Creator)
+local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
 
 local Paragraph = {}
+
+local VARIANTS = {
+	filled = { fill = "primary", text = "onPrimary" },
+	tonal = { fill = "secondaryContainer", text = "onSecondaryContainer" },
+	outlined = { fill = "surface", text = "primary", stroke = "outline" },
+	text = { fill = "surface", text = "primary" },
+}
 
 function Paragraph.new(ctx)
 	local props = ctx.props or {}
@@ -19,6 +27,7 @@ function Paragraph.new(ctx)
 		Creator.window = window
 
 		local buttons = props.Buttons or {}
+
 		local main = Creator.new("Frame", {
 			Name = "Paragraph",
 			LayoutOrder = order,
@@ -38,15 +47,14 @@ function Paragraph.new(ctx)
 
 		if props.Icon then
 			local icon = Creator.new("ImageLabel", {
-				Position = UDim2.new(0, 0, 0, 0),
 				Size = UDim2.fromOffset(24, 24),
 				BackgroundTransparency = 1,
 				Image = Icons.image(props.Icon) or "",
 				ImageColor3 = theme.colors.onSurfaceVariant,
 				ScaleType = Enum.ScaleType.Fit,
+				LayoutOrder = 1,
 				Parent = main,
 			}, { ImageColor3 = "onSurfaceVariant" })
-			icon.LayoutOrder = 1
 			self.icon = icon
 		end
 
@@ -55,16 +63,16 @@ function Paragraph.new(ctx)
 				Size = UDim2.new(1, 0, 0, 0),
 				AutomaticSize = Enum.AutomaticSize.Y,
 				BackgroundTransparency = 1,
-				Font = theme.fonts.bold,
+				Font = theme.fonts.medium,
 				Text = props.Title,
 				TextColor3 = theme.colors.onSurface,
 				TextSize = theme.type.titleMedium.size,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextYAlignment = Enum.TextYAlignment.Top,
 				TextWrapped = true,
+				LayoutOrder = 2,
 				Parent = main,
 			}, { TextColor3 = "onSurface" })
-			title.LayoutOrder = 2
 			self.title = title
 		end
 
@@ -80,34 +88,62 @@ function Paragraph.new(ctx)
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextYAlignment = Enum.TextYAlignment.Top,
 				TextWrapped = true,
+				LayoutOrder = 3,
 				Parent = main,
 			}, { TextColor3 = "onSurfaceVariant" })
-			desc.LayoutOrder = 3
 			self.desc = desc
 		end
 
 		for index, spec in ipairs(buttons) do
-			local variant = spec.Variant or "filled"
+			local variant = VARIANTS[spec.Variant] or VARIANTS.filled
+			local transparent = variant.fill == "surface"
 			local button = Creator.new("TextButton", {
 				Size = UDim2.new(1, 0, 0, 40),
-				BackgroundColor3 = variant == "filled" and theme.colors.primary or theme.colors.surfaceContainerHighest,
-				BackgroundTransparency = variant == "filled" and 0 or 0,
+				BackgroundColor3 = theme.colors[variant.fill],
+				BackgroundTransparency = transparent and 1 or 0,
 				BorderSizePixel = 0,
 				AutoButtonColor = false,
 				Text = spec.Title or "",
-				Font = theme.fonts.bold,
-				TextColor3 = variant == "filled" and theme.colors.onPrimary or theme.colors.onSurface,
+				Font = theme.fonts.medium,
+				TextColor3 = theme.colors[variant.text],
 				TextSize = theme.type.labelLarge.size,
 				LayoutOrder = 10 + index,
 				Parent = main,
 			}, {
-				BackgroundColor3 = variant == "filled" and "primary" or "surfaceContainerHighest",
-				TextColor3 = variant == "filled" and "onPrimary" or "onSurface",
+				BackgroundColor3 = variant.fill,
+				BackgroundTransparency = transparent and 1 or 0,
+				TextColor3 = variant.text,
 			})
+
 			Creator.new("UICorner", {
 				CornerRadius = theme.shape.button,
 				Parent = button,
 			})
+
+			if variant.stroke then
+				Creator.new("UIStroke", {
+					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+					Color = theme.colors[variant.stroke],
+					Transparency = 0,
+					Thickness = 1,
+					Parent = button,
+				}, { Color = variant.stroke })
+			end
+
+			local state = Creator.new("Frame", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = theme.colors[variant.text],
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				Parent = button,
+			}, { BackgroundColor3 = variant.text })
+
+			Element.connect(self, button.MouseEnter, function()
+				Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
+			end)
+			Element.connect(self, button.MouseLeave, function()
+				Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short)
+			end)
 			Element.connect(self, button.MouseButton1Click, function()
 				if spec.Callback then
 					task.spawn(spec.Callback)

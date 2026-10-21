@@ -1,5 +1,6 @@
 local Element = require(script.Parent.Parent.core.Element)
 local Creator = require(script.Parent.Parent.core.Creator)
+local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
 
 local Badge = {}
@@ -30,9 +31,10 @@ function Badge.new(ctx)
 		local main = Creator.new("Frame", {
 			Name = "Badge",
 			LayoutOrder = order,
-			Size = UDim2.new(0, 0, 0, 24),
+			Size = UDim2.new(0, 0, 0, 26),
 			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundColor3 = theme.colors[variant.fill],
+			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
 			Parent = parentFrame,
 		}, { BackgroundColor3 = variant.fill })
@@ -43,41 +45,52 @@ function Badge.new(ctx)
 			Parent = main,
 		})
 
-		Creator.new("UIPadding", {
-			PaddingLeft = UDim.new(0, 10),
-			PaddingRight = UDim.new(0, 10),
+		local row = Creator.new("Frame", {
+			Size = UDim2.new(0, 0, 1, 0),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundTransparency = 1,
 			Parent = main,
 		})
 
-		local icon = nil
+		Creator.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 6),
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Parent = row,
+		})
+
 		if props.Icon then
-			icon = Creator.new("ImageLabel", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 10, 0.5, 0),
+			local icon = Creator.new("ImageLabel", {
 				Size = UDim2.fromOffset(14, 14),
 				BackgroundTransparency = 1,
 				Image = Icons.image(props.Icon) or "",
 				ImageColor3 = theme.colors[variant.text],
 				ScaleType = Enum.ScaleType.Fit,
-				Parent = main,
+				LayoutOrder = 0,
+				Parent = row,
 			}, { ImageColor3 = variant.text })
 			self.icon = icon
 		end
 
 		local label = Creator.new("TextLabel", {
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, icon and 30 or 10, 0.5, 0),
-			Size = UDim2.new(1, icon and -40 or -20, 1, 0),
+			Size = UDim2.new(0, 0, 0, 18),
+			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundTransparency = 1,
 			Font = theme.fonts.bold,
 			Text = props.Text or "",
 			TextColor3 = theme.colors[variant.text],
-			TextSize = theme.type.labelSmall.size,
+			TextSize = theme.type.labelMedium.size,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = main,
+			Parent = row,
 		}, { TextColor3 = variant.text })
 		self.label = label
+
+		Creator.new("UIPadding", {
+			PaddingLeft = UDim.new(0, 12),
+			PaddingRight = UDim.new(0, 12),
+			Parent = main,
+		})
 	end
 
 	function handle:setText(text)

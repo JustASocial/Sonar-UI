@@ -1,11 +1,13 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Row = require(script.Parent.Parent.core.Row)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
 
 local Rating = {}
 
-local STAR = 24
+local STAR = 26
+local GAP = 4
 
 function Rating.new(ctx)
 	local props = ctx.props or {}
@@ -23,71 +25,34 @@ function Rating.new(ctx)
 		local theme = window.theme
 		Creator.window = window
 
-		local main = Creator.new("Frame", {
-			Name = "Rating",
-			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, props.Description and 68 or 48),
-			BackgroundTransparency = 1,
-			Parent = parentFrame,
+		local width = self.max * STAR + (self.max - 1) * GAP
+
+		Row.build(self, {
+			title = props.Title,
+			description = props.Description,
+			icon = props.Icon,
+			controlWidth = width,
+			parent = parentFrame,
+			order = order,
 		})
-		self.main = main
 
-		local title = Creator.new("TextLabel", {
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, -140, 0, 22),
-			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
-			Text = props.Title or "",
-			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.titleMedium.size,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = main,
-		}, { TextColor3 = "onSurface" })
-		self.title = title
-
-		if props.Description then
-			local desc = Creator.new("TextLabel", {
-				Position = UDim2.new(0, 0, 0, 22),
-				Size = UDim2.new(1, -140, 0, 18),
-				BackgroundTransparency = 1,
-				Font = theme.fonts.regular,
-				Text = props.Description,
-				TextColor3 = theme.colors.onSurfaceVariant,
-				TextSize = theme.type.bodySmall.size,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				TextTruncate = Enum.TextTruncate.AtEnd,
-				Parent = main,
-			}, { TextColor3 = "onSurfaceVariant" })
-			self.desc = desc
-		end
-
-		local valueLabel = Creator.new("TextLabel", {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, 0, 0, 0),
-			Size = UDim2.fromOffset(40, 22),
-			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
-			Text = "",
-			TextColor3 = theme.colors.primary,
-			TextSize = theme.type.labelLarge.size,
-			TextXAlignment = Enum.TextXAlignment.Right,
-			Parent = main,
-		}, { TextColor3 = "primary" })
-		self.valueLabel = valueLabel
+		local content = self.content
 
 		local row = Creator.new("Frame", {
-			Position = UDim2.new(0, 0, 0, props.Description and 42 or 22),
-			Size = UDim2.new(1, 0, 0, STAR),
+			Name = "Stars",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, 0, 0.5, 0),
+			Size = UDim2.fromOffset(width, STAR),
 			BackgroundTransparency = 1,
-			Parent = main,
+			Parent = content,
 		})
 		self.row = row
 
 		Creator.new("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
-			Padding = UDim.new(0, 4),
+			Padding = UDim.new(0, GAP),
 			SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
 			Parent = row,
 		})
 
@@ -112,7 +77,7 @@ function Rating.new(ctx)
 			self.stars[index] = { star = star, icon = icon }
 
 			Element.connect(self, star.MouseEnter, function()
-				Motion.tween(icon, { ImageColor3 = theme.colors.primary }, theme.motion.short4)
+				Motion.tween(icon, { ImageColor3 = theme.colors.primary }, theme.motion.short)
 			end)
 			Element.connect(self, star.MouseLeave, function()
 				self:_render()
@@ -132,17 +97,13 @@ function Rating.new(ctx)
 	end
 
 	function handle:_render()
-		if not self.row then
-			return
-		end
 		local theme = self.window.theme
 		for index, data in ipairs(self.stars) do
 			local filled = index <= self.value
 			Motion.tween(data.icon, {
 				ImageColor3 = filled and theme.colors.primary or theme.colors.onSurfaceVariant,
-			}, theme.motion.short4)
+			}, theme.motion.short)
 		end
-		self.valueLabel.Text = string.format("%d/%d", self.value, self.max)
 	end
 
 	function handle:Set(value, skipCallback)
@@ -166,9 +127,7 @@ function Rating.new(ctx)
 		if not self.main then
 			return
 		end
-		local theme = self.window.theme
-		self.title.TextColor3 = theme.colors.onSurface
-		self.valueLabel.TextColor3 = theme.colors.primary
+		Row.refreshTheme(self)
 		self:_render()
 	end
 

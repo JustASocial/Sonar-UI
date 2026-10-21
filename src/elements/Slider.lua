@@ -1,9 +1,13 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Row = require(script.Parent.Parent.core.Row)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Variables = require(script.Parent.Parent.core.Variables)
 
 local Slider = {}
+
+local TRACK_HEIGHT = 4
+local HANDLE = 20
 
 function Slider.new(ctx)
 	local props = ctx.props or {}
@@ -17,62 +21,51 @@ function Slider.new(ctx)
 	handle.max = props.Max or 100
 	handle.step = props.Step or 1
 	handle.value = props.Value or props.Default or handle.min
-	handle.second = props.SecondValue
 
 	function handle:_build(parentFrame, order)
 		local window = self.window
 		local theme = window.theme
 		Creator.window = window
 
-		local main = Creator.new("Frame", {
-			Name = "Slider",
-			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, 68),
-			BackgroundTransparency = 1,
-			Parent = parentFrame,
+		Row.build(self, {
+			title = props.Title,
+			description = props.Description,
+			icon = props.Icon,
+			controlWidth = 70,
+			parent = parentFrame,
+			order = order,
+			height = 76,
 		})
-		self.main = main
 
-		local title = Creator.new("TextLabel", {
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, -80, 0, 20),
-			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
-			Text = props.Title or "",
-			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.titleMedium.size,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = main,
-		}, { TextColor3 = "onSurface" })
-		self.title = title
+		local content = self.content
 
 		local valueLabel = Creator.new("TextLabel", {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, 0, 0, 0),
-			Size = UDim2.fromOffset(72, 20),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, 0, 0.5, 0),
+			Size = UDim2.fromOffset(64, 22),
 			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
+			Font = theme.fonts.medium,
 			Text = "",
 			TextColor3 = theme.colors.primary,
 			TextSize = theme.type.labelLarge.size,
 			TextXAlignment = Enum.TextXAlignment.Right,
-			Parent = main,
+			Parent = content,
 		}, { TextColor3 = "primary" })
 		self.valueLabel = valueLabel
 
 		local trackArea = Creator.new("Frame", {
-			Position = UDim2.new(0, 0, 0, 40),
-			Size = UDim2.new(1, 0, 0, 24),
+			Name = "TrackArea",
+			Position = UDim2.new(0, 0, 1, -20),
+			Size = UDim2.new(1, 0, 0, 26),
 			BackgroundTransparency = 1,
-			Parent = main,
+			Parent = self.main,
 		})
 		self.trackArea = trackArea
 
 		local track = Creator.new("Frame", {
 			AnchorPoint = Vector2.new(0, 0.5),
 			Position = UDim2.new(0, 0, 0.5, 0),
-			Size = UDim2.new(1, 0, 0, 4),
+			Size = UDim2.new(1, 0, 0, TRACK_HEIGHT),
 			BackgroundColor3 = theme.colors.surfaceContainerHighest,
 			BorderSizePixel = 0,
 			Parent = trackArea,
@@ -97,11 +90,10 @@ function Slider.new(ctx)
 			Parent = fill,
 		})
 
-		local handleSize = 20
 		local knob = Creator.new("Frame", {
 			AnchorPoint = Vector2.new(0, 0.5),
 			Position = UDim2.new(0, 0, 0.5, 0),
-			Size = UDim2.fromOffset(handleSize, handleSize),
+			Size = UDim2.fromOffset(HANDLE, HANDLE),
 			BackgroundColor3 = theme.colors.primary,
 			BorderSizePixel = 0,
 			Parent = trackArea,
@@ -122,6 +114,8 @@ function Slider.new(ctx)
 		}, { Color = "primary" })
 		self.knobRing = knobRing
 
+		local dragging = false
+
 		local function applyMouse(input)
 			local position = trackArea.AbsolutePosition.X
 			local width = trackArea.AbsoluteSize.X
@@ -136,21 +130,10 @@ function Slider.new(ctx)
 			self:Set(stepped, false, true)
 		end
 
-		local dragging = false
-
-		self._inputConnection = Element.connect(self, Variables.services.UserInputService.InputChanged, function(changed)
-			if not dragging then
-				return
-			end
-			if changed.UserInputType == Enum.UserInputType.MouseMovement or changed.UserInputType == Enum.UserInputType.Touch then
-				applyMouse(changed)
-			end
-		end)
-
 		Element.connect(self, trackArea.InputBegan, function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 				dragging = true
-				Motion.tween(knobRing, { Transparency = 0.6 }, theme.motion.short)
+				Motion.tween(knobRing, { Transparency = 0.55 }, theme.motion.short)
 				Motion.tween(knob, { Size = UDim2.fromOffset(26, 26) }, theme.motion.short)
 				applyMouse(input)
 			end
@@ -162,9 +145,18 @@ function Slider.new(ctx)
 			end
 			dragging = false
 			Motion.tween(knobRing, { Transparency = 1 }, theme.motion.short)
-			Motion.tween(knob, { Size = UDim2.fromOffset(20, 20) }, theme.motion.short)
+			Motion.tween(knob, { Size = UDim2.fromOffset(HANDLE, HANDLE) }, theme.motion.short)
 			if props.Callback then
 				task.spawn(props.Callback, self.value, false)
+			end
+		end)
+
+		self._inputConnection = Element.connect(self, Variables.services.UserInputService.InputChanged, function(input)
+			if not dragging then
+				return
+			end
+			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+				applyMouse(input)
 			end
 		end)
 
@@ -214,6 +206,7 @@ function Slider.new(ctx)
 			return
 		end
 		local theme = self.window.theme
+		Row.refreshTheme(self)
 		self.fill.BackgroundColor3 = theme.colors.primary
 		self.knob.BackgroundColor3 = theme.colors.primary
 		self.knobRing.Color = theme.colors.primary

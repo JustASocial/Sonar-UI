@@ -1,5 +1,7 @@
 local Element = require(script.Parent.Parent.core.Element)
 local Creator = require(script.Parent.Parent.core.Creator)
+local Motion = require(script.Parent.Parent.core.Motion)
+local Icons = require(script.Parent.Parent.icons.Init)
 
 local Image = {}
 
@@ -55,6 +57,13 @@ function Image.new(ctx)
 			CornerRadius = props.Radius and UDim.new(0, props.Radius) or theme.shape.card,
 			Parent = holder,
 		})
+		Creator.new("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = theme.colors.outlineVariant,
+			Transparency = 0,
+			Thickness = 1,
+			Parent = holder,
+		}, { Color = "outlineVariant" })
 
 		local image = Creator.new("ImageLabel", {
 			Size = UDim2.fromScale(1, 1),
@@ -68,8 +77,8 @@ function Image.new(ctx)
 		local caption = nil
 		if props.Caption then
 			caption = Creator.new("TextLabel", {
-				Position = UDim2.new(0, 0, 1, -20),
-				Size = UDim2.new(1, 0, 0, 18),
+				Position = UDim2.new(0, 2, 1, -20),
+				Size = UDim2.new(1, -4, 0, 18),
 				BackgroundTransparency = 1,
 				Font = theme.fonts.regular,
 				Text = props.Caption,

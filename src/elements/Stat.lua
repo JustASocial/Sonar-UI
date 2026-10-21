@@ -1,5 +1,7 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Row = require(script.Parent.Parent.core.Row)
 local Creator = require(script.Parent.Parent.core.Creator)
+local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
 
 local Stat = {}
@@ -19,86 +21,57 @@ function Stat.new(ctx)
 		local theme = window.theme
 		Creator.window = window
 
-		local main = Creator.new("Frame", {
-			Name = "Stat",
-			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, props.Description and 68 or 52),
-			BackgroundTransparency = 1,
-			Parent = parentFrame,
+		Row.build(self, {
+			title = props.Title,
+			description = props.Description,
+			icon = props.Icon,
+			controlWidth = 110,
+			parent = parentFrame,
+			order = order,
 		})
-		self.main = main
 
-		local title = Creator.new("TextLabel", {
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, -120, 0, 22),
-			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
-			Text = props.Title or "",
-			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.titleMedium.size,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = main,
-		}, { TextColor3 = "onSurface" })
-		self.title = title
-
-		if props.Description then
-			local desc = Creator.new("TextLabel", {
-				Position = UDim2.new(0, 0, 0, 22),
-				Size = UDim2.new(1, -120, 0, 18),
-				BackgroundTransparency = 1,
-				Font = theme.fonts.regular,
-				Text = props.Description,
-				TextColor3 = theme.colors.onSurfaceVariant,
-				TextSize = theme.type.bodySmall.size,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				TextTruncate = Enum.TextTruncate.AtEnd,
-				Parent = main,
-			}, { TextColor3 = "onSurfaceVariant" })
-			self.desc = desc
-		end
+		local content = self.content
 
 		local value = Creator.new("TextLabel", {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, 0, 0, props.Description and -8 or 0),
-			Size = UDim2.fromOffset(140, 30),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, 0, 0.5, 0),
+			Size = UDim2.fromOffset(110, 28),
 			BackgroundTransparency = 1,
 			Font = theme.fonts.bold,
 			Text = "",
 			TextColor3 = theme.colors.onSurface,
 			TextSize = theme.type.headlineSmall.size,
 			TextXAlignment = Enum.TextXAlignment.Right,
-			Parent = main,
+			Parent = content,
 		}, { TextColor3 = "onSurface" })
 		self.valueLabel = value
 
-		local changeIcon = nil
-		local changeLabel = nil
 		if props.Change ~= nil then
 			local positive = props.Change >= 0
-			changeIcon = Creator.new("ImageLabel", {
+			local changeIcon = Creator.new("ImageLabel", {
 				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, 0, 0.5, -6),
+				Position = UDim2.new(1, -86, 0.5, 14),
 				Size = UDim2.fromOffset(14, 14),
 				BackgroundTransparency = 1,
 				Image = Icons.image(positive and "trending-up" or "trending-down") or "",
 				ImageColor3 = positive and theme.colors.primary or theme.colors.error,
 				ScaleType = Enum.ScaleType.Fit,
-				Parent = main,
+				Parent = content,
 			}, { ImageColor3 = positive and "primary" or "error" })
-			changeLabel = Creator.new("TextLabel", {
+			self.changeIcon = changeIcon
+
+			local changeLabel = Creator.new("TextLabel", {
 				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, -20, 0.5, -6),
-				Size = UDim2.fromOffset(70, 18),
+				Position = UDim2.new(1, -20, 0.5, 14),
+				Size = UDim2.fromOffset(62, 18),
 				BackgroundTransparency = 1,
 				Font = theme.fonts.bold,
 				Text = "",
 				TextColor3 = positive and theme.colors.primary or theme.colors.error,
 				TextSize = theme.type.labelMedium.size,
 				TextXAlignment = Enum.TextXAlignment.Right,
-				Parent = main,
+				Parent = content,
 			}, { TextColor3 = positive and "primary" or "error" })
-			self.changeIcon = changeIcon
 			self.changeLabel = changeLabel
 		end
 
@@ -148,6 +121,7 @@ function Stat.new(ctx)
 			return
 		end
 		local theme = self.window.theme
+		Row.refreshTheme(self)
 		self.valueLabel.TextColor3 = theme.colors.onSurface
 		if self.changeLabel then
 			local positive = (self.props.Change or 0) >= 0

@@ -20,14 +20,14 @@ function Divider.new(ctx)
 		local main = Creator.new("Frame", {
 			Name = "Divider",
 			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, props.Text and 24 or 9),
+			Size = UDim2.new(1, 0, 0, props.Text and 26 or 10),
 			BackgroundTransparency = 1,
 			Parent = parentFrame,
 		})
 		self.main = main
 
 		local line = Creator.new("Frame", {
-			Position = UDim2.new(0, 0, 0, props.Text and 12 or 4),
+			Position = UDim2.new(0, 0, 0, props.Text and 13 or 5),
 			Size = UDim2.new(1, 0, 0, 1),
 			BackgroundColor3 = theme.colors.outlineVariant,
 			BackgroundTransparency = 0,
@@ -39,9 +39,12 @@ function Divider.new(ctx)
 		if props.Text then
 			local label = Creator.new("TextLabel", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.new(0.5, 0, 0, 12),
-				Size = UDim2.new(1, 0, 0, 18),
-				BackgroundTransparency = 1,
+				Position = UDim2.new(0.5, 0, 0, 13),
+				Size = UDim2.new(0, 0, 0, 18),
+				AutomaticSize = Enum.AutomaticSize.X,
+				BackgroundColor3 = theme.colors.surfaceContainerHigh,
+				BackgroundTransparency = 0,
+				BorderSizePixel = 0,
 				Font = theme.fonts.bold,
 				Text = props.Text,
 				TextColor3 = theme.colors.onSurfaceVariant,
@@ -61,6 +64,7 @@ function Divider.new(ctx)
 		self.line.BackgroundColor3 = theme.colors.outlineVariant
 		if self.label then
 			self.label.TextColor3 = theme.colors.onSurfaceVariant
+			self.label.BackgroundColor3 = theme.colors.surfaceContainerHigh
 		end
 	end
 

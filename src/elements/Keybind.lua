@@ -1,9 +1,13 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Row = require(script.Parent.Parent.core.Row)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Variables = require(script.Parent.Parent.core.Variables)
 
 local Keybind = {}
+
+local PILL_WIDTH = 120
+local PILL_HEIGHT = 40
 
 local function keyName(key)
 	if key == nil then
@@ -16,16 +20,6 @@ local function keyName(key)
 		return key.Name
 	end
 	return tostring(key)
-end
-
-local function isMouseButton(value)
-	if value == nil then
-		return false
-	end
-	if typeof(value) == "EnumItem" then
-		return value.EnumType == Enum.UserInputType
-	end
-	return false
 end
 
 function Keybind.new(ctx)
@@ -43,25 +37,28 @@ function Keybind.new(ctx)
 		local theme = window.theme
 		Creator.window = window
 
-		local main = Creator.new("Frame", {
-			Name = "Keybind",
-			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, props.Description and 76 or 60),
-			BackgroundTransparency = 1,
-			Parent = parentFrame,
+		Row.build(self, {
+			title = props.Title,
+			description = props.Description,
+			icon = props.Icon,
+			controlWidth = PILL_WIDTH,
+			parent = parentFrame,
+			order = order,
 		})
-		self.main = main
+
+		local content = self.content
 
 		local trigger = Creator.new("TextButton", {
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, 0, 0, 8),
-			Size = UDim2.fromOffset(150, 44),
-			BackgroundColor3 = theme.colors.surfaceContainerHigh,
+			Name = "Trigger",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, 0, 0.5, 0),
+			Size = UDim2.fromOffset(PILL_WIDTH, PILL_HEIGHT),
+			BackgroundColor3 = theme.colors.surfaceContainerHighest,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
 			Text = "",
-			Parent = main,
-		}, { BackgroundColor3 = "surfaceContainerHigh" })
+			Parent = content,
+		}, { BackgroundColor3 = "surfaceContainerHighest" })
 		self.trigger = trigger
 
 		Creator.new("UICorner", {
@@ -90,7 +87,7 @@ function Keybind.new(ctx)
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.new(1, -16, 1, 0),
 			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
+			Font = theme.fonts.medium,
 			Text = "None",
 			TextColor3 = theme.colors.onSurface,
 			TextSize = theme.type.bodyMedium.size,
@@ -100,22 +97,12 @@ function Keybind.new(ctx)
 		}, { TextColor3 = "onSurface" })
 		self.label = label
 
-		if props.Description then
-			local desc = Creator.new("TextLabel", {
-				Position = UDim2.new(0, 0, 1, -20),
-				Size = UDim2.new(1, 0, 0, 18),
-				BackgroundTransparency = 1,
-				Font = theme.fonts.regular,
-				Text = props.Description,
-				TextColor3 = theme.colors.onSurfaceVariant,
-				TextSize = theme.type.bodySmall.size,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				TextTruncate = Enum.TextTruncate.AtEnd,
-				Parent = main,
-			}, { TextColor3 = "onSurfaceVariant" })
-			self.desc = desc
-		end
-
+		Element.connect(self, trigger.MouseEnter, function()
+			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
+		end)
+		Element.connect(self, trigger.MouseLeave, function()
+			Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short)
+		end)
 		Element.connect(self, trigger.MouseButton1Click, function()
 			if self.locked then
 				return
@@ -143,7 +130,7 @@ function Keybind.new(ctx)
 		local theme = self.window.theme
 		self.recording = true
 		self:_updateDisplay()
-		Motion.tween(self.state, { BackgroundTransparency = 1 - theme.state.pressed }, theme.motion.short4)
+		Motion.tween(self.state, { BackgroundTransparency = 1 - theme.state.pressed }, theme.motion.short)
 
 		self._recorder = Variables.services.UserInputService.InputBegan:Connect(function(input, processed)
 			if processed then
@@ -174,7 +161,7 @@ function Keybind.new(ctx)
 		end
 		self:_updateDisplay()
 		if self.state then
-			Motion.tween(self.state, { BackgroundTransparency = 1 }, self.window.theme.motion.short4)
+			Motion.tween(self.state, { BackgroundTransparency = 1 }, self.window.theme.motion.short)
 		end
 	end
 
@@ -198,7 +185,8 @@ function Keybind.new(ctx)
 			return
 		end
 		local theme = self.window.theme
-		self.trigger.BackgroundColor3 = theme.colors.surfaceContainerHigh
+		Row.refreshTheme(self)
+		self.trigger.BackgroundColor3 = theme.colors.surfaceContainerHighest
 		self.label.TextColor3 = theme.colors.onSurface
 	end
 

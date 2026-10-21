@@ -10,21 +10,23 @@ local VARIANTS = {
 	tonal = { fill = "secondaryContainer", text = "onSecondaryContainer" },
 	outlined = { fill = "surface", text = "primary", stroke = "outline" },
 	text = { fill = "surface", text = "primary" },
-	elevated = { fill = "surfaceContainerLow", text = "primary" },
+	elevated = { fill = "surfaceContainerHigh", text = "primary" },
+	danger = { fill = "errorContainer", text = "onErrorContainer" },
 }
 
 local SIZES = {
-	sm = { height = 32, text = "labelMedium", pad = 14 },
-	md = { height = 40, text = "labelLarge", pad = 20 },
-	lg = { height = 56, text = "labelLarge", pad = 24 },
+	sm = { height = 32, text = "labelMedium", pad = 14, icon = 16 },
+	md = { height = 40, text = "labelLarge", pad = 18, icon = 18 },
+	lg = { height = 52, text = "labelLarge", pad = 24, icon = 22 },
 }
 
 function Button.new(ctx)
+	local props = ctx.props or {}
 	local handle = Element.new({
 		typeName = "Button",
 		window = ctx.window,
 		container = ctx.container,
-		props = ctx.props,
+		props = props,
 	})
 
 	function handle:_build(parentFrame, order)
@@ -32,24 +34,23 @@ function Button.new(ctx)
 		local theme = window.theme
 		Creator.window = window
 
-		local props = self.props
 		local variant = VARIANTS[props.Variant] or VARIANTS.filled
 		local size = SIZES[props.Size] or SIZES.md
+		local transparent = variant.fill == "surface"
 
 		local main = Creator.new("TextButton", {
 			Name = "Button",
 			LayoutOrder = order,
 			Size = UDim2.new(1, 0, 0, size.height),
 			BackgroundColor3 = theme.colors[variant.fill],
-			BackgroundTransparency = variant.fill == "surface" and 1 or 0,
+			BackgroundTransparency = transparent and 1 or 0,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
 			Text = "",
 			Parent = parentFrame,
 		}, {
 			BackgroundColor3 = variant.fill,
-			BackgroundTransparency = variant.fill == "surface" and 1 or 0,
-			TextColor3 = variant.text,
+			BackgroundTransparency = transparent and 1 or 0,
 		})
 		self.main = main
 
@@ -77,52 +78,55 @@ function Button.new(ctx)
 		}, { BackgroundColor3 = variant.text })
 		self.state = state
 
-		local iconName = props.Icon
 		local align = props.IconAlign or "Left"
-		local textX = align == "Right" and Enum.TextXAlignment.Right or Enum.TextXAlignment.Left
-		local iconSize = size.height - 16
+		local iconSize = size.icon
+		local textLeft = size.pad
 
 		local text = Creator.new("TextLabel", {
 			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, size.pad, 0.5, 0),
+			Position = UDim2.new(0, textLeft, 0.5, 0),
 			Size = UDim2.new(1, -(size.pad * 2), 1, 0),
 			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
+			Font = theme.fonts.medium,
 			Text = props.Title or "",
 			TextColor3 = theme.colors[variant.text],
 			TextSize = theme.type[size.text].size,
-			TextXAlignment = textX,
+			TextXAlignment = align == "Right" and Enum.TextXAlignment.Right or Enum.TextXAlignment.Left,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			Parent = main,
 		}, { TextColor3 = variant.text })
 		self.text = text
 
-		if iconName then
+		if props.Icon then
 			local icon = Creator.new("ImageLabel", {
 				AnchorPoint = Vector2.new(0, 0.5),
-				Position = align == "Right" and UDim2.new(1, -size.pad - iconSize, 0.5, 0) or UDim2.new(0, size.pad, 0.5, 0),
+				Position = align == "Right"
+					and UDim2.new(1, -size.pad - iconSize, 0.5, 0)
+					or UDim2.new(0, size.pad, 0.5, 0),
 				Size = UDim2.fromOffset(iconSize, iconSize),
 				BackgroundTransparency = 1,
-				Image = Icons.image(iconName) or "",
+				Image = Icons.image(props.Icon) or "",
 				ImageColor3 = theme.colors[variant.text],
 				ScaleType = Enum.ScaleType.Fit,
 				Parent = main,
 			}, { ImageColor3 = variant.text })
 			self.icon = icon
+
 			if align == "Right" then
 				text.Position = UDim2.new(0, size.pad, 0.5, 0)
-				text.Size = UDim2.new(1, -(size.pad * 2 + iconSize + 8), 1, 0)
-			else
-				text.Position = UDim2.new(0, size.pad + iconSize + 10, 0.5, 0)
 				text.Size = UDim2.new(1, -(size.pad * 2 + iconSize + 10), 1, 0)
+			else
+				textLeft = size.pad + iconSize + 10
+				text.Position = UDim2.new(0, textLeft, 0.5, 0)
+				text.Size = UDim2.new(1, -(textLeft + size.pad), 1, 0)
 			end
 		end
 
 		Element.connect(self, main.MouseEnter, function()
-			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short4)
+			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
 		end)
 		Element.connect(self, main.MouseLeave, function()
-			Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short4)
+			Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short)
 		end)
 		Element.connect(self, main.InputBegan, function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then

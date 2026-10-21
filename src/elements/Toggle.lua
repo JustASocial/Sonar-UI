@@ -1,4 +1,5 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Row = require(script.Parent.Parent.core.Row)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 local Icons = require(script.Parent.Parent.icons.Init)
@@ -23,83 +24,33 @@ function Toggle.new(ctx)
 		local theme = window.theme
 		Creator.window = window
 
-		local main = Creator.new("Frame", {
-			Name = "Toggle",
-			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, props.Description and 64 or 48),
-			BackgroundTransparency = 1,
-			Parent = parentFrame,
+		Row.build(self, {
+			title = props.Title,
+			description = props.Description,
+			icon = props.Icon,
+			controlWidth = TRACK_WIDTH,
+			parent = parentFrame,
+			order = order,
 		})
-		self.main = main
 
-		local title = Creator.new("TextLabel", {
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 0, 0.5, props.Description and -10 or 0),
-			Size = UDim2.new(1, -(TRACK_WIDTH + 32), 1, 0),
-			BackgroundTransparency = 1,
-			Font = theme.fonts.bold,
-			Text = props.Title or "",
-			TextColor3 = theme.colors.onSurface,
-			TextSize = theme.type.titleMedium.size,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Parent = main,
-		}, { TextColor3 = "onSurface" })
-		self.title = title
+		local content = self.content
 
-		if props.Description then
-			local desc = Creator.new("TextLabel", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 0, 0.5, 12),
-				Size = UDim2.new(1, -(TRACK_WIDTH + 32), 1, 0),
-				BackgroundTransparency = 1,
-				Font = theme.fonts.regular,
-				Text = props.Description,
-				TextColor3 = theme.colors.onSurfaceVariant,
-				TextSize = theme.type.bodySmall.size,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				TextTruncate = Enum.TextTruncate.AtEnd,
-				Parent = main,
-			}, { TextColor3 = "onSurfaceVariant" })
-			self.desc = desc
-		end
-
-		if props.Icon then
-			local icon = Creator.new("ImageLabel", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 0, 0.5, 0),
-				Size = UDim2.fromOffset(22, 22),
-				BackgroundTransparency = 1,
-				Image = Icons.image(props.Icon) or "",
-				ImageColor3 = theme.colors.onSurfaceVariant,
-				ScaleType = Enum.ScaleType.Fit,
-				Parent = main,
-			}, { ImageColor3 = "onSurfaceVariant" })
-			self.icon = icon
-			title.Position = UDim2.new(0, 32, 0.5, props.Description and -10 or 0)
-			title.Size = UDim2.new(1, -(TRACK_WIDTH + 64), 1, 0)
-			if self.desc then
-				self.desc.Position = UDim2.new(0, 32, 0.5, 12)
-				self.desc.Size = UDim2.new(1, -(TRACK_WIDTH + 64), 1, 0)
-			end
-		end
-
-		local switch = Creator.new("TextButton", {
+		local track = Creator.new("TextButton", {
 			Name = "Switch",
 			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -16, 0.5, 0),
+			Position = UDim2.new(1, 0, 0.5, 0),
 			Size = UDim2.fromOffset(TRACK_WIDTH, TRACK_HEIGHT),
 			BackgroundColor3 = theme.colors.surfaceContainerHighest,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
 			Text = "",
-			Parent = main,
+			Parent = content,
 		}, { BackgroundColor3 = "surfaceContainerHighest" })
-		self.switch = switch
+		self.track = track
 
 		Creator.new("UICorner", {
 			CornerRadius = UDim.new(1, 0),
-			Parent = switch,
+			Parent = track,
 		})
 
 		local state = Creator.new("Frame", {
@@ -107,7 +58,7 @@ function Toggle.new(ctx)
 			BackgroundColor3 = theme.colors.onSurface,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Parent = switch,
+			Parent = track,
 		}, { BackgroundColor3 = "onSurface" })
 		self.state = state
 
@@ -116,7 +67,7 @@ function Toggle.new(ctx)
 			Color = theme.colors.outline,
 			Transparency = 0,
 			Thickness = 2,
-			Parent = switch,
+			Parent = track,
 		}, { Color = "outline" })
 		self.stroke = stroke
 
@@ -126,7 +77,7 @@ function Toggle.new(ctx)
 			Size = UDim2.fromOffset(16, 16),
 			BackgroundColor3 = theme.colors.outline,
 			BorderSizePixel = 0,
-			Parent = switch,
+			Parent = track,
 		}, { BackgroundColor3 = "outline" })
 		self.knob = knob
 
@@ -135,8 +86,9 @@ function Toggle.new(ctx)
 			Parent = knob,
 		})
 
+		local knobIcon = nil
 		if props.Icon then
-			local knobIcon = Creator.new("ImageLabel", {
+			knobIcon = Creator.new("ImageLabel", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.5, 0.5),
 				Size = UDim2.fromOffset(14, 14),
@@ -144,26 +96,26 @@ function Toggle.new(ctx)
 				Image = Icons.image(props.Icon) or "",
 				ImageColor3 = theme.colors.surfaceContainerHighest,
 				ScaleType = Enum.ScaleType.Fit,
+				Parent = knob,
 			}, { ImageColor3 = "surfaceContainerHighest" })
-			knobIcon.Parent = knob
 			self.knobIcon = knobIcon
 		end
 
-		Element.connect(self, switch.MouseEnter, function()
-			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short4)
+		Element.connect(self, track.MouseEnter, function()
+			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short)
 		end)
-		Element.connect(self, switch.MouseLeave, function()
-			Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short4)
+		Element.connect(self, track.MouseLeave, function()
+			Motion.tween(state, { BackgroundTransparency = 1 }, theme.motion.short)
 		end)
-		Element.connect(self, switch.InputBegan, function(input)
+		Element.connect(self, track.InputBegan, function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 				Motion.tween(state, { BackgroundTransparency = 1 - theme.state.pressed }, theme.motion.short4)
 			end
 		end)
-		Element.connect(self, switch.InputEnded, function()
+		Element.connect(self, track.InputEnded, function()
 			Motion.tween(state, { BackgroundTransparency = 1 - theme.state.hover }, theme.motion.short4)
 		end)
-		Element.connect(self, switch.MouseButton1Click, function()
+		Element.connect(self, track.MouseButton1Click, function()
 			if self.locked then
 				return
 			end
@@ -176,9 +128,9 @@ function Toggle.new(ctx)
 	function handle:_render(animate)
 		local theme = self.window.theme
 		local on = self.value == true
-		local token = animate and theme.motion.standard or theme.motion.short4
+		local token = animate and theme.motion.standard or theme.motion.short
 
-		Motion.tween(self.switch, {
+		Motion.tween(self.track, {
 			BackgroundColor3 = on and theme.colors.primary or theme.colors.surfaceContainerHighest,
 		}, token)
 		Motion.tween(self.stroke, {
@@ -206,8 +158,8 @@ function Toggle.new(ctx)
 		if self.main then
 			self:_render(true)
 		end
-		if not skipCallback and self.props.Callback then
-			task.spawn(self.props.Callback, value)
+		if not skipCallback and props.Callback then
+			task.spawn(props.Callback, value)
 		end
 		if self.window and self.flag then
 			self.window:_persist(self)
@@ -222,6 +174,7 @@ function Toggle.new(ctx)
 		if not self.main then
 			return
 		end
+		Row.refreshTheme(self)
 		self:_render(false)
 	end
 

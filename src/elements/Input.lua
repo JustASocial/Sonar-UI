@@ -1,4 +1,5 @@
 local Element = require(script.Parent.Parent.core.Element)
+local Icons = require(script.Parent.Parent.icons.Init)
 local Creator = require(script.Parent.Parent.core.Creator)
 local Motion = require(script.Parent.Parent.core.Motion)
 
@@ -58,9 +59,25 @@ function Input.new(ctx)
 		}, { BackgroundColor3 = "onSurfaceVariant" })
 		self.indicator = indicator
 
+		local fieldLeft = 16
+		if props.Icon then
+			local fieldIcon = Creator.new("ImageLabel", {
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0, 16, 0.5, 0),
+				Size = UDim2.fromOffset(18, 18),
+				BackgroundTransparency = 1,
+				Image = Icons.image(props.Icon) or "",
+				ImageColor3 = theme.colors.onSurfaceVariant,
+				ScaleType = Enum.ScaleType.Fit,
+				Parent = field,
+			}, { ImageColor3 = "onSurfaceVariant" })
+			self.fieldIcon = fieldIcon
+			fieldLeft = 16 + 18 + 12
+		end
+
 		local label = Creator.new("TextLabel", {
-			Position = UDim2.new(0, 16, 0, 8),
-			Size = UDim2.new(1, -32, 0, 16),
+			Position = UDim2.new(0, fieldLeft, 0, 8),
+			Size = UDim2.new(1, -(fieldLeft + 16), 0, 16),
 			BackgroundTransparency = 1,
 			Font = theme.fonts.bold,
 			Text = props.Title or "",
@@ -74,8 +91,8 @@ function Input.new(ctx)
 
 		local textbox = Creator.new("TextBox", {
 			Name = "TextBox",
-			Position = UDim2.new(0, 16, 0, multiline and 30 or 26),
-			Size = UDim2.new(1, -32, 1, multiline and -38 or -30),
+			Position = UDim2.new(0, fieldLeft, 0, multiline and 30 or 26),
+			Size = UDim2.new(1, -(fieldLeft + 16), 1, multiline and -38 or -30),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Text = "",
@@ -115,10 +132,10 @@ function Input.new(ctx)
 				return
 			end
 			Motion.tween(label, {
-				Position = UDim2.new(0, 16, 0, floating and 8 or 20),
+				Position = UDim2.new(0, fieldLeft, 0, floating and 8 or 20),
 				TextSize = floating and theme.type.labelMedium.size or theme.type.bodyLarge.size,
 			}, theme.motion.standard)
-			label.Position = UDim2.new(0, 16, 0, floating and 8 or 20)
+			label.Position = UDim2.new(0, fieldLeft, 0, floating and 8 or 20)
 			label.TextSize = floating and theme.type.labelMedium.size or theme.type.bodyLarge.size
 		end
 
@@ -175,10 +192,10 @@ function Input.new(ctx)
 		if self.textbox then
 			self.textbox.Text = value
 			if value ~= "" then
-				self.label.Position = UDim2.new(0, 16, 0, 8)
+				self.label.Position = UDim2.new(0, fieldLeft, 0, 8)
 				self.label.TextSize = self.window.theme.type.labelMedium.size
 			else
-				self.label.Position = UDim2.new(0, 16, 0, 20)
+				self.label.Position = UDim2.new(0, fieldLeft, 0, 20)
 				self.label.TextSize = self.window.theme.type.bodyLarge.size
 			end
 		end
